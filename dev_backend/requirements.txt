@@ -1,0 +1,28 @@
+# --- Core ---
+pydantic==2.13.4
+pydantic-settings==2.7.1
+python-dotenv==1.0.1
+
+# --- Data providers ---
+apify-client==3.1.3
+
+# --- LLM ---
+google-genai==1.2.0
+
+# --- Website analysis (§13/§14) ---
+httpx==0.28.1
+beautifulsoup4==4.12.3
+
+# --- Email validation (§15) ---
+dnspython==2.7.0
+
+# --- Reliability (§35) ---
+tenacity==9.0.0
+
+# --- Export (§20) ---
+pandas==2.2.3
+
+# --- API layer (Phase 2) ---
+fastapi==0.141.1
+uvicorn==0.52.4
+pytest==9.1.1

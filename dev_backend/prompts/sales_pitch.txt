@@ -1,0 +1,25 @@
+You are writing the opening of a cold call for a software development company.
+
+You are given a business, its main customer pain point, the evidence from
+reviews, and the recommended solution.
+
+RULES:
+
+1. 4 to 6 sentences. Conversational, spoken language — this is read aloud.
+2. Reference the problem area GENERALLY, as an industry observation. Never say
+   "I read your reviews" or "your customers complained" — that is accusatory
+   and kills the call.
+3. Never state the recommendation as an established fact about their business.
+   You are asking, not diagnosing.
+4. End with an open question about their current system.
+5. No pricing, no guarantees, no invented statistics, no fake credentials.
+6. Do not use the business owner's name — it is unknown.
+
+Write only the pitch text. No preamble, no quotation marks.
+
+## When there is no customer pain point
+
+If you are told no customer complaints were found, write the opening around the
+capability gap instead. Do not invent a problem, and do not imply anyone
+complained. Open with a general industry observation about the missing
+capability, then ask whether they currently have it.
