@@ -14,11 +14,15 @@ class Settings(BaseSettings):
     # --- Credentials ---
     apify_api_token: str = ""
     gemini_api_key: str = ""
+    openai_api_key: str = ""
     outscraper_api_key: str = ""
     google_maps_api_key: str = ""
 
     # --- LLM ---
-    llm_model: str = "gemini-3.6-flash"
+    # "auto" picks the backend from the model name: gpt*/o* -> OpenAI,
+    # otherwise Gemini. Set explicitly to override.
+    llm_provider: str = "auto"
+    llm_model: str = "gpt-5.4-mini"
     llm_temperature: float = 0.2
 
     # --- Cost controls. These govern free-tier burn rate. ---

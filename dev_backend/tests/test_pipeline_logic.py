@@ -346,3 +346,51 @@ class TestTechDetection:
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-v", "--tb=short"]))
+
+
+# --- LLM backend routing --------------------------------------------------- #
+
+from app.services.llm_backends import as_strict_schema, build_backend  # noqa: E402
+from app.services.llm_service import OPPORTUNITY_SCHEMA, REVIEW_ANALYSIS_SCHEMA  # noqa: E402
+
+
+class TestLLMBackends:
+    KEYS = {"openai": "sk-test", "gemini": "g-test"}
+
+    def test_auto_routes_gpt_to_openai(self):
+        for model in ("gpt-5.4-mini", "gpt-4.1", "o3-mini"):
+            assert build_backend("auto", model, 0.2, self.KEYS).name == "openai"
+
+    def test_auto_routes_gemini_to_gemini(self):
+        assert build_backend("auto", "gemini-3.6-flash", 0.2, self.KEYS).name == "gemini"
+
+    def test_explicit_provider_overrides_model_name(self):
+        assert build_backend("gemini", "gpt-5.4-mini", 0.2, self.KEYS).name == "gemini"
+
+    def test_missing_key_is_a_clear_error(self):
+        with pytest.raises(RuntimeError, match="OPENAI_API_KEY"):
+            build_backend("openai", "gpt-5.4-mini", 0.2, {"gemini": "g"})
+
+    def test_unknown_provider_rejected(self):
+        with pytest.raises(RuntimeError, match="unknown LLM_PROVIDER"):
+            build_backend("anthropic", "x", 0.2, self.KEYS)
+
+    def test_strict_schema_closes_every_object(self):
+        """OpenAI strict mode rejects a schema with an open object anywhere."""
+        strict = as_strict_schema(REVIEW_ANALYSIS_SCHEMA)
+        assert strict["additionalProperties"] is False
+        assert strict["properties"]["analyses"]["items"]["additionalProperties"] is False
+        strict_opp = as_strict_schema(OPPORTUNITY_SCHEMA)
+        assert strict_opp["additionalProperties"] is False
+
+    def test_strict_schema_does_not_mutate_the_original(self):
+        """Gemini rejects additionalProperties, so the shared schema must stay clean."""
+        as_strict_schema(REVIEW_ANALYSIS_SCHEMA)
+        assert "additionalProperties" not in REVIEW_ANALYSIS_SCHEMA
+        assert "additionalProperties" not in REVIEW_ANALYSIS_SCHEMA["properties"]["analyses"]["items"]
+
+    def test_strict_schema_requires_every_property(self):
+        """OpenAI strict mode also requires every property to be in `required`."""
+        for schema in (REVIEW_ANALYSIS_SCHEMA, OPPORTUNITY_SCHEMA):
+            item = schema["properties"].get("analyses", {}).get("items", schema)
+            assert set(item["properties"]) == set(item["required"])

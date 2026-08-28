@@ -16,7 +16,7 @@ prove is that five real leads are useful to the sales team.
 ```bash
 cd dev_backend
 venv/Scripts/python.exe -m pip install -r requirements.txt
-cp .env.example .env      # then fill in APIFY_API_TOKEN and GEMINI_API_KEY
+cp .env.example .env      # then fill in APIFY_API_TOKEN and your LLM key
 ```
 
 ## Run
@@ -60,16 +60,15 @@ model + place + review text, so tuning scoring weights or the CSV layout is free
 |---|---|
 | Apify: 10 Chennai places × 20 reviews | **$0.16** per run |
 | Apify free tier | $5/month → **~30 fresh searches** |
-| Gemini free tier | **20 requests/day, per model** |
+| OpenAI `gpt-5.4-mini` | pay-per-token, no daily cap |
+| Gemini free tier | 20 requests/day, per model |
 
-The Gemini limit is the tighter of the two. This pipeline spends roughly
-`candidates + 2 × leads_returned` requests, so a 10-candidate / 5-lead run costs
-about 20 requests — one full search per day per model. Three ways around it:
+This pipeline spends roughly `candidates + 2 × leads_returned` LLM requests — a
+5-candidate / 5-lead run measured **13 calls**.
 
-1. **Switch `LLM_MODEL`.** The quota is per model, so `gemini-3.5-flash`,
-   `gemini-3.6-flash` and `gemini-3.1-flash-lite` each get their own 20/day.
-2. **Lean on the cache.** Re-runs and prompt tuning cost nothing.
-3. **Pay.** Gemini paid tier removes the daily cap entirely.
+On Gemini's free tier that is most of one day's quota, which is why the default
+is now OpenAI. If you switch back to Gemini, note the cap is per model, so
+`gemini-3.5-flash` and `gemini-3.6-flash` each get their own 20/day.
 
 Opportunity detection and pitch generation run only for the leads actually
 returned, not for every candidate, which is why a wide candidate pool is cheap.
@@ -88,7 +87,28 @@ venv/Scripts/python.exe scripts/seed_cache_from_run.py <run_id> \
     --category "Clothing Stores" --location "Chennai"
 ```
 
-Knobs in `.env` that govern burn rate:
+### Switching LLM provider
+
+`LLM_PROVIDER=auto` picks the backend from the model name — `gpt*`/`o*` go to
+OpenAI, anything else to Gemini — so changing provider is one line in `.env`:
+
+```env
+LLM_MODEL=gpt-5.4-mini        # OpenAI  (default)
+LLM_MODEL=gemini-3.6-flash    # Gemini
+```
+
+Set `LLM_PROVIDER` explicitly to `openai` or `gemini` to override the guess.
+Backends live in `app/services/llm_backends.py`; the prompts, caching and
+evidence-binding above them are provider-agnostic.
+
+Two things to know:
+
+- **Switching models invalidates the LLM cache** (the model is part of the cache
+  key), so analyses re-run. Apify credits are untouched.
+- Some newer OpenAI models reject a custom `temperature`. The backend detects
+  this on first use and retries with the model's default rather than failing.
+
+### Burn-rate knobs in `.env`
 
 | Variable | Default | Effect |
 |---|---|---|

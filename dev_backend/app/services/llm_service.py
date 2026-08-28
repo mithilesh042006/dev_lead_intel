@@ -9,8 +9,6 @@ from __future__ import annotations
 import json
 import logging
 
-from google import genai
-from google.genai import types
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from app.config import BASE_DIR, settings
@@ -23,6 +21,12 @@ from app.models import (
     TechSignals,
 )
 from app.providers import cache
+from app.services.llm_backends import (
+    LLMError,
+    LLMFatalError,
+    LLMQuotaError,
+    build_backend,
+)
 
 log = logging.getLogger(__name__)
 
@@ -79,36 +83,26 @@ OPPORTUNITY_SCHEMA = {
 }
 
 
-class LLMError(RuntimeError):
-    """Transient failure — worth retrying (timeout, 429, 5xx)."""
-
-
-class LLMFatalError(RuntimeError):
-    """Permanent failure — bad key, unknown model, malformed request. Do not retry."""
-
-
-class LLMQuotaError(LLMFatalError):
-    """Daily free-tier quota exhausted. Retrying inside this run cannot help.
-
-    Gemini's free tier allows 20 generate_content requests per day per model,
-    so a full search of ~10 businesses can exhaust it. The quota is per model,
-    so switching LLM_MODEL is the quickest workaround.
-    """
-
-
-# 404 = model retired, 400 = bad request, 401/403 = bad key. Retrying these
-# just burns wall-clock; 429 and 5xx are the only ones worth a second attempt.
-_FATAL_MARKERS = ("400", "401", "403", "404", "INVALID_ARGUMENT", "PERMISSION_DENIED")
-
-
 class LLMService:
-    def __init__(self, api_key: str | None = None, model: str | None = None):
-        key = api_key or settings.gemini_api_key
-        if not key:
-            raise RuntimeError("GEMINI_API_KEY is not set (see .env.example)")
+    def __init__(
+        self,
+        api_key: str | None = None,
+        model: str | None = None,
+        provider: str | None = None,
+    ):
         self.model = model or settings.llm_model
-        self.client = genai.Client(api_key=key)
+        self.backend = build_backend(
+            provider or settings.llm_provider,
+            self.model,
+            settings.llm_temperature,
+            {
+                "openai": api_key or settings.openai_api_key,
+                "gemini": api_key or settings.gemini_api_key,
+            },
+        )
+        self.provider = self.backend.name
         self.calls_made = 0
+        log.info("LLM: %s via %s", self.model, self.provider)
 
     # ------------------------------------------------------------------ #
 
@@ -119,28 +113,8 @@ class LLMService:
         reraise=True,
     )
     def _generate(self, system: str, user: str, schema: dict | None) -> str:
-        config = types.GenerateContentConfig(
-            system_instruction=system,
-            temperature=settings.llm_temperature,
-        )
-        if schema is not None:
-            config.response_mime_type = "application/json"
-            config.response_schema = schema
-
-        try:
-            resp = self.client.models.generate_content(
-                model=self.model, contents=user, config=config
-            )
-        except Exception as exc:
-            message = str(exc)
-            if "RESOURCE_EXHAUSTED" in message or "429" in message:
-                raise LLMQuotaError(message) from exc
-            if any(marker in message for marker in _FATAL_MARKERS):
-                raise LLMFatalError(message) from exc
-            raise LLMError(message) from exc
-
+        text = self.backend.generate(system, user, schema)
         self.calls_made += 1
-        text = (resp.text or "").strip()
         if not text:
             raise LLMError("empty response from model")
         return text
