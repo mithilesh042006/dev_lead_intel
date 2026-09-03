@@ -246,3 +246,17 @@ def saved_leads_csv(rows) -> str:
     # utf-8-sig so Excel reads accented names correctly; sanitised so a review
     # beginning with "=" is not run as a formula.
     return _sanitize_frame(frame).to_csv(index=False, encoding="utf-8-sig")
+
+
+def leads_csv(leads: list[Lead], kind: str = "leads") -> str:
+    """Build a CSV in memory from leads still held by a job.
+
+    The API serves exports this way rather than reading `data/out`, so a
+    deployment with an ephemeral filesystem (Render, containers generally)
+    still exports correctly after a restart wipes the disk.
+    """
+    if kind == "evidence":
+        frame = pd.DataFrame(evidence_rows(leads), columns=EVIDENCE_COLUMNS)
+    else:
+        frame = pd.DataFrame([lead_to_row(l) for l in leads], columns=LEAD_COLUMNS)
+    return _sanitize_frame(frame).to_csv(index=False, encoding="utf-8-sig")

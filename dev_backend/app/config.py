@@ -47,8 +47,18 @@ class Settings(BaseSettings):
     output_dir: Path = BASE_DIR / "data" / "out"
     cache_enabled: bool = True
 
+    # --- Deployment ---
+    # Comma-separated browser origins allowed to call this API. Localhost only
+    # by default; a deployed frontend must be added explicitly, because "*"
+    # would let any site drive an API that holds real credentials (§37).
+    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
+
     # --- Apify actor (§5.2) ---
     apify_actor_id: str = "compass/crawler-google-places"
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
 
     def ensure_dirs(self) -> None:
         self.cache_dir.mkdir(parents=True, exist_ok=True)

@@ -1,0 +1,64 @@
+# Render Blueprint. From the repo root: New → Blueprint → point at this repo.
+#
+# Secrets are deliberately NOT in this file. Every value marked `sync: false`
+# must be set in the Render dashboard, so nothing sensitive reaches git.
+services:
+  - type: web
+    name: lead-intelligence-api
+    runtime: python
+    plan: free
+    region: oregon
+    rootDir: dev_backend
+    buildCommand: pip install -r requirements.txt
+
+    # Bind 0.0.0.0:$PORT — Render assigns the port and probes the container
+    # from outside, so binding 127.0.0.1 would fail its health check.
+    #
+    # ONE worker, deliberately. Search jobs live in an in-process registry
+    # (app/services/job_store.py); with two workers a job created in one would
+    # 404 when polled from the other.
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1
+
+    healthCheckPath: /api/health
+
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.10"
+
+      # --- Secrets: set these in the dashboard ---
+      - key: APIFY_API_TOKEN
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+
+      # --- Frontend origin(s) allowed to call this API (comma-separated).
+      #     Must be set once the frontend is deployed, or the browser blocks it.
+      - key: CORS_ORIGINS
+        sync: false
+
+      # --- Tuning: safe to keep in git ---
+      - key: LLM_PROVIDER
+        value: auto
+      - key: LLM_MODEL
+        value: gpt-5.4-mini
+      - key: MAX_PLACES_PER_SEARCH
+        value: "10"
+      - key: MAX_REVIEWS_PER_PLACE
+        value: "20"
+      - key: REVIEWS_SORT
+        value: lowestRanking
+      - key: MAX_LLM_REVIEWS_PER_BUSINESS
+        value: "12"
+      - key: CACHE_ENABLED
+        value: "true"
+
+    # The disk is what makes the Apify cache survive a restart. Without it every
+    # deploy wipes data/cache and repeat searches re-spend credits.
+    # Requires a paid instance type; delete this block on the free plan and
+    # accept that the cache is cold after each restart.
+    # disk:
+    #   name: lead-cache
+    #   mountPath: /opt/render/project/src/dev_backend/data
+    #   sizeGB: 1

@@ -11,6 +11,12 @@ Input → Apify → businesses → reviews → pre-filter → LLM → website+em
 No API server and no UI yet — that is deliberate (§42). The first thing to
 prove is that five real leads are useful to the sales team.
 
+## Deploying
+
+See [DEPLOY.md](DEPLOY.md) for Render. In short: `render.yaml` defines the
+service, four secrets go in the dashboard, and the start command pins
+`--workers 1` because the job registry is in-process.
+
 ## Setup
 
 ```bash

@@ -28,7 +28,7 @@ import logging
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import Response
 
 from app import db
 from app.config import settings
@@ -223,15 +223,27 @@ def get_lead_analysis(lead_id: str, job_id: str = Query(...)) -> dict:
 
 
 @router.get("/export/csv")
-def export_csv(job_id: str = Query(...), kind: str = Query(default="leads")) -> FileResponse:
+def export_csv(job_id: str = Query(...), kind: str = Query(default="leads")) -> Response:
+    """Built from the job's leads in memory, not read back from `data/out`.
+
+    The pipeline still writes those files for the CLI, but serving from disk
+    would break on any host with an ephemeral filesystem.
+    """
     job = _require_job(job_id)
-    path = job.evidence_path if kind == "evidence" else job.csv_path
-    if path is None or not path.exists():
+    if not job.leads:
         raise HTTPException(
             status_code=404,
             detail="no CSV for this job yet — it may still be running or have produced no leads",
         )
-    return FileResponse(path, media_type="text/csv", filename=path.name)
+
+    body = export_service.leads_csv(job.leads, kind)
+    suffix = "_evidence" if kind == "evidence" else ""
+    filename = f"leads_{job.created_at.strftime('%Y%m%d_%H%M%S')}{suffix}.csv"
+    return Response(
+        content=body,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 # --- Saved leads (§28) ----------------------------------------------------- #
