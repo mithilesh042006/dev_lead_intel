@@ -15,6 +15,10 @@
     GET    /api/saved-leads/ids      which leads are already saved
     GET    /api/saved-leads/{lead_id}
     DELETE /api/saved-leads/{lead_id}
+
+    GET    /api/saved-leads/{lead_id}/followups
+    POST   /api/saved-leads/{lead_id}/followups
+    DELETE /api/saved-leads/{lead_id}/followups/{followup_id}
 """
 from __future__ import annotations
 
@@ -28,6 +32,9 @@ from app.config import settings
 from app.models import SearchRequest
 from app.pipeline import LeadPipeline
 from app.schemas.api import (
+    FollowUpBody,
+    FollowUpOut,
+    FollowUpsResponse,
     JobOut,
     LeadOut,
     LeadsResponse,
@@ -313,3 +320,40 @@ def delete_saved_lead(lead_id: str) -> None:
     _require_db()
     if not saved_leads_store.delete_saved(lead_id):
         raise HTTPException(status_code=404, detail=f"lead {lead_id} is not saved")
+
+
+# --- Follow-ups ------------------------------------------------------------ #
+#
+# Nested under the lead they belong to, so a follow-up can never be created
+# against a lead that was never saved.
+
+
+@router.get("/saved-leads/{lead_id}/followups", response_model=FollowUpsResponse)
+def list_followups(lead_id: str) -> FollowUpsResponse:
+    _require_db()
+    rows = saved_leads_store.list_followups(lead_id)
+    if rows is None:
+        raise HTTPException(status_code=404, detail=f"lead {lead_id} is not saved")
+    return FollowUpsResponse(
+        lead_id=lead_id,
+        count=len(rows),
+        followups=[FollowUpOut.model_validate(r) for r in rows],
+    )
+
+
+@router.post(
+    "/saved-leads/{lead_id}/followups", response_model=FollowUpOut, status_code=201
+)
+def add_followup(lead_id: str, body: FollowUpBody) -> FollowUpOut:
+    _require_db()
+    entry = saved_leads_store.add_followup(lead_id, body.model_dump())
+    if entry is None:
+        raise HTTPException(status_code=404, detail=f"lead {lead_id} is not saved")
+    return FollowUpOut.model_validate(entry)
+
+
+@router.delete("/saved-leads/{lead_id}/followups/{followup_id}", status_code=204)
+def delete_followup(lead_id: str, followup_id: int) -> None:
+    _require_db()
+    if not saved_leads_store.delete_followup(lead_id, followup_id):
+        raise HTTPException(status_code=404, detail="no such follow-up on this lead")

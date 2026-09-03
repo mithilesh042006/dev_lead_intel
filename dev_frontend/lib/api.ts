@@ -4,6 +4,9 @@
 // holds the Apify and Gemini credentials server-side (§37).
 
 import type {
+  FollowUp,
+  FollowUpBody,
+  FollowUpsResponse,
   Job,
   LeadsResponse,
   SaveLeadsResult,
@@ -128,5 +131,26 @@ export async function deleteSavedLead(leadId: string): Promise<void> {
   const response = await fetch(`${API_BASE}/api/saved-leads/${leadId}`, {
     method: "DELETE",
   });
+  if (!response.ok) throw new ApiError(await describeError(response), response.status);
+}
+
+// --- Follow-ups ------------------------------------------------------------
+
+export function listFollowUps(leadId: string): Promise<FollowUpsResponse> {
+  return request<FollowUpsResponse>(`/api/saved-leads/${leadId}/followups`);
+}
+
+export function addFollowUp(leadId: string, body: FollowUpBody): Promise<FollowUp> {
+  return request<FollowUp>(`/api/saved-leads/${leadId}/followups`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function deleteFollowUp(leadId: string, followUpId: number): Promise<void> {
+  const response = await fetch(
+    `${API_BASE}/api/saved-leads/${leadId}/followups/${followUpId}`,
+    { method: "DELETE" },
+  );
   if (!response.ok) throw new ApiError(await describeError(response), response.status);
 }

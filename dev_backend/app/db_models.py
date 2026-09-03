@@ -18,10 +18,11 @@ rewrite itself.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from sqlalchemy import (
     Boolean,
+    Date,
     DateTime,
     Float,
     ForeignKey,
@@ -107,6 +108,12 @@ class SavedLead(Base):
     evidence: Mapped[list["SavedEvidence"]] = relationship(
         back_populates="lead", cascade="all, delete-orphan", lazy="selectin"
     )
+    followups: Mapped[list["LeadFollowUp"]] = relationship(
+        back_populates="lead",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="LeadFollowUp.happened_on.desc(), LeadFollowUp.id.desc()",
+    )
 
 
 class SavedEvidence(Base):
@@ -139,3 +146,35 @@ class SavedEvidence(Base):
     confidence: Mapped[float] = mapped_column(Float, default=0.0)
 
     lead: Mapped[SavedLead] = relationship(back_populates="evidence")
+
+
+# Methods a rep can log. Kept as a plain list rather than a database enum so
+# adding one is a code change, not a migration.
+FOLLOWUP_METHODS = ["Call", "Email", "WhatsApp", "SMS", "Meeting", "LinkedIn", "Other"]
+
+
+class LeadFollowUp(Base):
+    """A logged contact attempt against a saved lead.
+
+    This is the human half of the product: the pipeline says who to call and
+    why, and this records what happened when someone did.
+    """
+
+    __tablename__ = "lead_followups"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    lead_db_id: Mapped[int] = mapped_column(
+        ForeignKey("saved_leads.id", ondelete="CASCADE"), index=True
+    )
+
+    happened_on: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    method: Mapped[str] = mapped_column(String(40), default="Call")
+    outcome: Mapped[str] = mapped_column(String(300), default="")
+    notes: Mapped[str] = mapped_column(Text, default="")
+    next_followup_on: Mapped[date | None] = mapped_column(Date, index=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow
+    )
+
+    lead: Mapped[SavedLead] = relationship(back_populates="followups")

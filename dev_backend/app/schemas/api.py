@@ -7,11 +7,12 @@ serialised into a list response by accident.
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.db_models import FOLLOWUP_METHODS
 from app.models import Lead
 
 
@@ -288,3 +289,50 @@ def saved_lead_to_out(row) -> SavedLeadOut:
         llm_model=row.llm_model,
         saved_at=row.saved_at,
     )
+
+
+# --- Follow-ups ------------------------------------------------------------ #
+
+
+class FollowUpBody(BaseModel):
+    """One logged contact attempt."""
+
+    happened_on: date
+    method: str = Field(default="Call", max_length=40)
+    outcome: str = Field(default="", max_length=300)
+    notes: str = Field(default="", max_length=4000)
+    next_followup_on: Optional[date] = None
+
+    @field_validator("method")
+    @classmethod
+    def _known_method(cls, v: str) -> str:
+        if v not in FOLLOWUP_METHODS:
+            raise ValueError(f"method must be one of: {', '.join(FOLLOWUP_METHODS)}")
+        return v
+
+    @field_validator("next_followup_on")
+    @classmethod
+    def _next_is_after(cls, v: Optional[date], info):
+        happened = info.data.get("happened_on")
+        if v is not None and happened is not None and v < happened:
+            raise ValueError("next follow-up cannot be before the follow-up date")
+        return v
+
+
+class FollowUpOut(BaseModel):
+    id: int
+    happened_on: date
+    method: str
+    outcome: str
+    notes: str
+    next_followup_on: Optional[date] = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class FollowUpsResponse(BaseModel):
+    lead_id: str
+    count: int
+    methods: list[str] = Field(default_factory=lambda: list(FOLLOWUP_METHODS))
+    followups: list[FollowUpOut]

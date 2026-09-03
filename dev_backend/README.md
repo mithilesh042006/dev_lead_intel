@@ -266,6 +266,7 @@ one row in the database, not five.
 |---|---|---|
 | `saved_leads` | One row per kept business | `businesses` + `leads` |
 | `saved_evidence` | One row per software-related review | `reviews` + `review_analysis` |
+| `lead_followups` | One row per logged contact attempt | beyond §28 |
 
 `lead_id` is unique and derives from the Google place id, so saving the same
 business twice **updates** the row rather than duplicating it — that is how a rep
@@ -276,12 +277,26 @@ A stored lead is a **snapshot** of the analysis when it was saved. Ratings move
 and reviews get deleted; a lead someone already read and acted on must not
 silently rewrite itself.
 
+### Follow-ups
+
+Each saved lead carries a follow-up log — the human half of the product. The
+pipeline says who to call and why; `lead_followups` records what happened when
+someone did: date, method, outcome, notes, and an optional next follow-up date.
+
+Follow-ups are nested under the lead (`/saved-leads/{lead_id}/followups`), so
+one can never be created against a lead that was never saved, and deleting a
+lead cascades to its follow-ups.
+
 | Endpoint | Purpose |
 |---|---|
 | `POST /api/saved-leads` | Save selected leads (`job_id` + `lead_ids`) |
 | `GET /api/saved-leads` | All saved leads, highest score first |
 | `GET /api/saved-leads/ids` | Which leads are already saved, for pre-ticking the UI |
+| `GET /api/saved-leads/{lead_id}` | One saved lead in full |
 | `DELETE /api/saved-leads/{lead_id}` | Remove one |
+| `GET /api/saved-leads/{lead_id}/followups` | Follow-up history, newest first |
+| `POST /api/saved-leads/{lead_id}/followups` | Log a follow-up |
+| `DELETE /api/saved-leads/{lead_id}/followups/{id}` | Remove one |
 
 They sit on their own `/saved-leads` prefix rather than under `/leads`, because
 `/leads/saved` would collide with `/leads/{lead_id}` and only work by accident

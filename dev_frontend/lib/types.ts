@@ -139,3 +139,30 @@ export interface SaveLeadsResult {
   updated: number;
   lead_ids: string[];
 }
+
+// --- Follow-ups ------------------------------------------------------------
+
+export interface FollowUp {
+  id: number;
+  happened_on: string;
+  method: string;
+  outcome: string;
+  notes: string;
+  next_followup_on: string | null;
+  created_at: string;
+}
+
+export interface FollowUpBody {
+  happened_on: string;
+  method: string;
+  outcome: string;
+  notes: string;
+  next_followup_on: string | null;
+}
+
+export interface FollowUpsResponse {
+  lead_id: string;
+  count: number;
+  methods: string[];
+  followups: FollowUp[];
+}

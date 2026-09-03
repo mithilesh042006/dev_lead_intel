@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import FollowUpCard from "@/app/components/FollowUpCard";
 import LeadCard from "@/app/components/LeadCard";
 import { ApiError, deleteSavedLead, getSavedLead } from "@/lib/api";
 import type { SavedLead } from "@/lib/types";
@@ -91,6 +92,7 @@ export default function SavedLeadView({ leadId }: { leadId: string }) {
             </div>
 
             <LeadCard lead={lead} rank={1} />
+            <FollowUpCard leadId={lead.lead_id} />
           </>
         )}
       </main>

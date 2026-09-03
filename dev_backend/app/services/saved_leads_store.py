@@ -13,7 +13,7 @@ from typing import Optional
 from sqlalchemy import func, select
 
 from app.db import session_scope
-from app.db_models import SavedEvidence, SavedLead
+from app.db_models import LeadFollowUp, SavedEvidence, SavedLead
 from app.models import Lead
 from app.schemas.api import lead_id_for
 
@@ -166,4 +166,53 @@ def delete_saved(lead_id: str) -> bool:
         if row is None:
             return False
         db.delete(row)  # evidence cascades
+        return True
+
+
+# --- Follow-ups ------------------------------------------------------------ #
+
+
+def _lead_row(db, lead_id: str) -> Optional[SavedLead]:
+    return db.execute(
+        select(SavedLead).where(SavedLead.lead_id == lead_id)
+    ).scalar_one_or_none()
+
+
+def list_followups(lead_id: str) -> Optional[list[LeadFollowUp]]:
+    """None means the lead itself is not saved — distinct from 'no follow-ups'."""
+    with session_scope() as db:
+        row = _lead_row(db, lead_id)
+        return None if row is None else list(row.followups)
+
+
+def add_followup(lead_id: str, data: dict) -> Optional[LeadFollowUp]:
+    with session_scope() as db:
+        row = _lead_row(db, lead_id)
+        if row is None:
+            return None
+        entry = LeadFollowUp(
+            lead_db_id=row.id,
+            happened_on=data["happened_on"],
+            method=data.get("method") or "Call",
+            outcome=(data.get("outcome") or "").strip(),
+            notes=(data.get("notes") or "").strip(),
+            next_followup_on=data.get("next_followup_on"),
+        )
+        db.add(entry)
+        db.flush()
+        db.refresh(entry)
+        return entry
+
+
+def delete_followup(lead_id: str, followup_id: int) -> bool:
+    with session_scope() as db:
+        row = _lead_row(db, lead_id)
+        if row is None:
+            return False
+        entry = db.get(LeadFollowUp, followup_id)
+        # Scope the delete to this lead so an id from another lead cannot be
+        # removed by guessing.
+        if entry is None or entry.lead_db_id != row.id:
+            return False
+        db.delete(entry)
         return True
