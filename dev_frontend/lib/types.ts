@@ -119,35 +119,23 @@ export function isTerminal(status: JobStatus): boolean {
   return TERMINAL_STATUSES.includes(status);
 }
 
-// --- Saved sessions (§28) --------------------------------------------------
+// --- Saved leads (§28) -----------------------------------------------------
 
-export interface SessionSummary {
-  id: number;
-  name: string;
-  location: string;
-  category: string;
-  min_rating: number;
-  max_rating: number;
-  minimum_reviews: number;
-  requested_leads: number;
-  status: string;
-  lead_count: number;
-  hot_count: number;
-  top_score: number;
+export interface SavedLead extends Lead {
+  source_location: string;
+  source_category: string;
   llm_model: string | null;
-  created_at: string;
+  saved_at: string;
 }
 
-export interface SessionDetail extends SessionSummary {
-  max_places: number | null;
-  strict_filters: boolean;
-  warnings: string[];
-  stats: Record<string, unknown>;
-  leads: Lead[];
-}
-
-export interface SessionListResponse {
+export interface SavedLeadsResponse {
   total: number;
   count: number;
-  sessions: SessionSummary[];
+  leads: SavedLead[];
+}
+
+export interface SaveLeadsResult {
+  created: number;
+  updated: number;
+  lead_ids: string[];
 }

@@ -195,56 +195,44 @@ class LeadsResponse(BaseModel):
     leads: list[LeadOut]
 
 
-# --- Saved sessions (§28) -------------------------------------------------- #
+# --- Saved leads (§28) ----------------------------------------------------- #
 
 
-class SaveSessionBody(BaseModel):
+class SaveLeadsBody(BaseModel):
+    """The Save-selected action: a job plus the leads ticked in the UI."""
+
     job_id: str
-    name: Optional[str] = Field(default=None, max_length=200)
+    lead_ids: list[str] = Field(min_length=1, max_length=100)
 
 
-class SessionSummary(BaseModel):
-    """List view — no leads, so the sessions page stays cheap to load."""
+class SaveLeadsResult(BaseModel):
+    created: int
+    updated: int
+    lead_ids: list[str]
 
-    id: int
-    name: str
-    location: str
-    category: str
-    min_rating: float
-    max_rating: float
-    minimum_reviews: int
-    requested_leads: int
-    status: str
-    lead_count: int
-    hot_count: int
-    top_score: int
+
+class SavedLeadOut(LeadOut):
+    """A saved lead is a LeadOut plus where and when it was kept.
+
+    Inheriting means the sessions list and a live search render through the same
+    contract, so the frontend needs no second code path.
+    """
+
+    source_location: str = ""
+    source_category: str = ""
     llm_model: Optional[str] = None
-    created_at: datetime
-
-    model_config = {"from_attributes": True}
+    saved_at: datetime
 
 
-class SessionDetail(SessionSummary):
-    max_places: Optional[int] = None
-    strict_filters: bool = False
-    warnings: list[str] = Field(default_factory=list)
-    stats: dict = Field(default_factory=dict)
-    leads: list[LeadOut] = Field(default_factory=list)
-
-
-class SessionListResponse(BaseModel):
+class SavedLeadsResponse(BaseModel):
     total: int
     count: int
-    sessions: list[SessionSummary]
+    leads: list[SavedLeadOut]
 
 
-def saved_lead_to_out(row) -> LeadOut:
-    """Rebuild the API shape from a persisted row.
-
-    Kept in one place so the sessions page and a live search render through the
-    same LeadOut contract and the frontend needs no second code path.
-    """
-    return LeadOut(
+def saved_lead_to_out(row) -> SavedLeadOut:
+    """Rebuild the API shape from a persisted row."""
+    return SavedLeadOut(
         lead_id=row.lead_id,
         company_name=row.company_name,
         category=row.category,
@@ -295,4 +283,8 @@ def saved_lead_to_out(row) -> LeadOut:
             )
             for e in row.evidence
         ],
+        source_location=row.source_location,
+        source_category=row.source_category,
+        llm_model=row.llm_model,
+        saved_at=row.saved_at,
     )

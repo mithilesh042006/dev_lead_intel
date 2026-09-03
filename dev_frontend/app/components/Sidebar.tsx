@@ -23,9 +23,9 @@ const NAV: NavItem[] = [
     ),
   },
   {
-    href: "/sessions",
-    label: "Saved sessions",
-    description: "Searches you kept",
+    href: "/leads",
+    label: "Saved leads",
+    description: "Leads you kept",
     icon: (
       <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4 shrink-0" aria-hidden="true">
         <path
@@ -91,7 +91,7 @@ export default function Sidebar() {
       </ul>
 
       <p className="hidden px-5 pb-5 text-[11px] leading-relaxed text-zinc-400 dark:text-zinc-600 md:absolute md:bottom-0 md:block">
-        Searches are kept only when you save them.
+        Leads are kept only when you save them.
       </p>
     </nav>
   );

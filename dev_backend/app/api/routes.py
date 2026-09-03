@@ -10,11 +10,10 @@
     GET  /api/leads/{lead_id}/analysis
     GET  /api/export/csv
 
-    POST   /api/sessions            save a finished job (§28)
-    GET    /api/sessions
-    GET    /api/sessions/{id}
-    PATCH  /api/sessions/{id}       rename
-    DELETE /api/sessions/{id}
+    POST   /api/saved-leads         save the leads the user selected (§28)
+    GET    /api/saved-leads
+    GET    /api/saved-leads/ids      which leads are already saved
+    DELETE /api/saved-leads/{lead_id}
 """
 from __future__ import annotations
 
@@ -31,16 +30,15 @@ from app.schemas.api import (
     JobOut,
     LeadOut,
     LeadsResponse,
-    SaveSessionBody,
+    SaveLeadsBody,
+    SaveLeadsResult,
+    SavedLeadsResponse,
     SearchAccepted,
     SearchBody,
-    SessionDetail,
-    SessionListResponse,
-    SessionSummary,
     lead_id_for,
     saved_lead_to_out,
 )
-from app.services import session_store
+from app.services import saved_leads_store
 from app.services.job_store import Job, store
 
 log = logging.getLogger(__name__)
@@ -224,20 +222,24 @@ def export_csv(job_id: str = Query(...), kind: str = Query(default="leads")) -> 
     return FileResponse(path, media_type="text/csv", filename=path.name)
 
 
-# --- Saved sessions (§28) -------------------------------------------------- #
+# --- Saved leads (§28) ----------------------------------------------------- #
+#
+# Deliberately on their own /saved-leads prefix rather than under /leads: a
+# path like /leads/saved would collide with /leads/{lead_id} and only work by
+# accident of registration order.
 
 
 def _require_db() -> None:
     if not db.is_configured():
         raise HTTPException(
             status_code=503,
-            detail="Session saving is disabled — DATABASE_URL is not configured.",
+            detail="Saving leads is disabled — DATABASE_URL is not configured.",
         )
 
 
-@router.post("/sessions", response_model=SessionDetail, status_code=201)
-def save_session(body: SaveSessionBody) -> SessionDetail:
-    """Persist a finished job. Explicit — nothing is saved without this call."""
+@router.post("/saved-leads", response_model=SaveLeadsResult, status_code=201)
+def save_leads(body: SaveLeadsBody) -> SaveLeadsResult:
+    """Save the selected leads. Nothing is stored without this call."""
     _require_db()
     job = _require_job(body.job_id)
 
@@ -246,64 +248,55 @@ def save_session(body: SaveSessionBody) -> SessionDetail:
             status_code=409,
             detail=f"Job is still {job.status}. Wait for it to finish before saving.",
         )
-    if not job.leads:
+
+    wanted = set(body.lead_ids)
+    selected = [l for l in job.leads if lead_id_for(l.business.place_id) in wanted]
+    if not selected:
         raise HTTPException(
-            status_code=409, detail="This search produced no leads, so there is nothing to save."
+            status_code=404, detail="None of those lead ids belong to this job."
         )
 
     try:
-        new_id = session_store.save_session(job, body.name, llm_model=settings.llm_model)
+        outcome = saved_leads_store.save_leads(
+            selected,
+            {
+                "job_id": job.id,
+                "location": job.request.location,
+                "category": job.request.category,
+                "llm_model": settings.llm_model,
+            },
+        )
     except Exception as exc:
-        log.exception("failed to save session")
+        log.exception("failed to save leads")
         raise HTTPException(status_code=502, detail=f"Could not save to the database: {exc}")
 
-    return _session_detail(new_id)
+    return SaveLeadsResult(
+        created=outcome.created, updated=outcome.updated, lead_ids=outcome.lead_ids
+    )
 
 
-@router.get("/sessions", response_model=SessionListResponse)
-def list_sessions(
-    limit: int = Query(default=50, ge=1, le=200),
+@router.get("/saved-leads", response_model=SavedLeadsResponse)
+def list_saved_leads(
+    limit: int = Query(default=200, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
-) -> SessionListResponse:
+) -> SavedLeadsResponse:
     _require_db()
-    rows, total = session_store.list_sessions(limit=limit, offset=offset)
-    return SessionListResponse(
-        total=total,
-        count=len(rows),
-        sessions=[SessionSummary.model_validate(r) for r in rows],
+    rows, total = saved_leads_store.list_saved(limit=limit, offset=offset)
+    return SavedLeadsResponse(
+        total=total, count=len(rows), leads=[saved_lead_to_out(r) for r in rows]
     )
 
 
-def _session_detail(session_id: int) -> SessionDetail:
-    row = session_store.get_session(session_id)
-    if row is None:
-        raise HTTPException(status_code=404, detail=f"unknown session id: {session_id}")
-    return SessionDetail(
-        **SessionSummary.model_validate(row).model_dump(),
-        max_places=row.max_places,
-        strict_filters=row.strict_filters,
-        warnings=list(row.warnings or []),
-        stats=dict(row.stats or {}),
-        leads=[saved_lead_to_out(l) for l in row.leads],
-    )
+@router.get("/saved-leads/ids", response_model=list[str])
+def saved_lead_ids() -> list[str]:
+    """Lets the results page show already-saved leads as ticked."""
+    if not db.is_configured():
+        return []  # not an error: the UI simply shows nothing as saved
+    return sorted(saved_leads_store.saved_ids())
 
 
-@router.get("/sessions/{session_id}", response_model=SessionDetail)
-def get_session(session_id: int) -> SessionDetail:
+@router.delete("/saved-leads/{lead_id}", status_code=204)
+def delete_saved_lead(lead_id: str) -> None:
     _require_db()
-    return _session_detail(session_id)
-
-
-@router.patch("/sessions/{session_id}", response_model=SessionDetail)
-def rename_session(session_id: int, body: SaveSessionBody) -> SessionDetail:
-    _require_db()
-    if session_store.rename_session(session_id, body.name or "") is None:
-        raise HTTPException(status_code=404, detail=f"unknown session id: {session_id}")
-    return _session_detail(session_id)
-
-
-@router.delete("/sessions/{session_id}", status_code=204)
-def delete_session(session_id: int) -> None:
-    _require_db()
-    if not session_store.delete_session(session_id):
-        raise HTTPException(status_code=404, detail=f"unknown session id: {session_id}")
+    if not saved_leads_store.delete_saved(lead_id):
+        raise HTTPException(status_code=404, detail=f"lead {lead_id} is not saved")

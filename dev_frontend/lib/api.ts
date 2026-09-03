@@ -6,9 +6,9 @@
 import type {
   Job,
   LeadsResponse,
+  SaveLeadsResult,
+  SavedLeadsResponse,
   SearchBody,
-  SessionDetail,
-  SessionListResponse,
 } from "./types";
 
 export const API_BASE =
@@ -98,34 +98,30 @@ export function health(): Promise<{
   return request("/api/health");
 }
 
-// --- Saved sessions (§28) --------------------------------------------------
+// --- Saved leads (§28) -----------------------------------------------------
 
-export function saveSession(
+export function saveLeads(
   jobId: string,
-  name?: string,
-): Promise<SessionDetail> {
-  return request<SessionDetail>("/api/sessions", {
+  leadIds: string[],
+): Promise<SaveLeadsResult> {
+  return request<SaveLeadsResult>("/api/saved-leads", {
     method: "POST",
-    body: JSON.stringify({ job_id: jobId, name: name ?? null }),
+    body: JSON.stringify({ job_id: jobId, lead_ids: leadIds }),
   });
 }
 
-export function listSessions(limit = 50): Promise<SessionListResponse> {
-  return request<SessionListResponse>(`/api/sessions?limit=${limit}`);
+export function listSavedLeads(limit = 200): Promise<SavedLeadsResponse> {
+  return request<SavedLeadsResponse>(`/api/saved-leads?limit=${limit}`);
 }
 
-export function getSession(id: number): Promise<SessionDetail> {
-  return request<SessionDetail>(`/api/sessions/${id}`);
+/** Which leads are already saved, so results can show them as ticked. */
+export function savedLeadIds(): Promise<string[]> {
+  return request<string[]>("/api/saved-leads/ids");
 }
 
-export function renameSession(id: number, name: string): Promise<SessionDetail> {
-  return request<SessionDetail>(`/api/sessions/${id}`, {
-    method: "PATCH",
-    body: JSON.stringify({ job_id: "", name }),
+export async function deleteSavedLead(leadId: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/api/saved-leads/${leadId}`, {
+    method: "DELETE",
   });
-}
-
-export async function deleteSession(id: number): Promise<void> {
-  const response = await fetch(`${API_BASE}/api/sessions/${id}`, { method: "DELETE" });
   if (!response.ok) throw new ApiError(await describeError(response), response.status);
 }
