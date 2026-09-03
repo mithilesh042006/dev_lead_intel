@@ -52,7 +52,8 @@ export default function Sidebar() {
     <nav
       aria-label="Main"
       className="shrink-0 border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950
-                 md:sticky md:top-0 md:h-screen md:w-60 md:border-b-0 md:border-r"
+                 md:sticky md:top-0 md:flex md:h-screen md:w-60 md:flex-col
+                 md:border-b-0 md:border-r"
     >
       <div className="flex items-center gap-2 px-5 py-4 md:py-6">
         <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-zinc-900 text-xs font-bold text-white dark:bg-zinc-100 dark:text-zinc-900">
@@ -90,7 +91,10 @@ export default function Sidebar() {
         })}
       </ul>
 
-      <p className="hidden px-5 pb-5 text-[11px] leading-relaxed text-zinc-400 dark:text-zinc-600 md:absolute md:bottom-0 md:block">
+      {/* mt-auto keeps this at the bottom of the flex column. It previously
+          used absolute positioning and escaped the nav entirely. pb-16 clears
+          the Next dev-tools badge that sits in the same corner. */}
+      <p className="hidden px-5 pb-16 text-[11px] leading-relaxed text-zinc-400 dark:text-zinc-600 md:mt-auto md:block">
         Leads are kept only when you save them.
       </p>
     </nav>

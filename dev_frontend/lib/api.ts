@@ -7,6 +7,7 @@ import type {
   Job,
   LeadsResponse,
   SaveLeadsResult,
+  SavedLead,
   SavedLeadsResponse,
   SearchBody,
 } from "./types";
@@ -117,6 +118,10 @@ export function listSavedLeads(limit = 200): Promise<SavedLeadsResponse> {
 /** Which leads are already saved, so results can show them as ticked. */
 export function savedLeadIds(): Promise<string[]> {
   return request<string[]>("/api/saved-leads/ids");
+}
+
+export function getSavedLead(leadId: string): Promise<SavedLead> {
+  return request<SavedLead>(`/api/saved-leads/${leadId}`);
 }
 
 export async function deleteSavedLead(leadId: string): Promise<void> {

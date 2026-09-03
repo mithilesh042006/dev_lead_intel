@@ -13,6 +13,7 @@
     POST   /api/saved-leads         save the leads the user selected (§28)
     GET    /api/saved-leads
     GET    /api/saved-leads/ids      which leads are already saved
+    GET    /api/saved-leads/{lead_id}
     DELETE /api/saved-leads/{lead_id}
 """
 from __future__ import annotations
@@ -32,6 +33,7 @@ from app.schemas.api import (
     LeadsResponse,
     SaveLeadsBody,
     SaveLeadsResult,
+    SavedLeadOut,
     SavedLeadsResponse,
     SearchAccepted,
     SearchBody,
@@ -293,6 +295,17 @@ def saved_lead_ids() -> list[str]:
     if not db.is_configured():
         return []  # not an error: the UI simply shows nothing as saved
     return sorted(saved_leads_store.saved_ids())
+
+
+@router.get("/saved-leads/{lead_id}", response_model=SavedLeadOut)
+def get_saved_lead(lead_id: str) -> SavedLeadOut:
+    """One saved lead in full. Registered after /saved-leads/ids so that
+    literal path is not swallowed by this parameterised one."""
+    _require_db()
+    row = saved_leads_store.get_saved(lead_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"lead {lead_id} is not saved")
+    return saved_lead_to_out(row)
 
 
 @router.delete("/saved-leads/{lead_id}", status_code=204)
