@@ -136,6 +136,12 @@ export async function deleteSavedLead(leadId: string): Promise<void> {
 
 // --- Follow-ups ------------------------------------------------------------
 
+/** Download URL for every saved lead. A plain <a href>, not fetch: the browser
+ *  handles the download from the Content-Disposition header. */
+export function savedLeadsCsvUrl(): string {
+  return `${API_BASE}/api/saved-leads/export/csv`;
+}
+
 export function listFollowUps(leadId: string): Promise<FollowUpsResponse> {
   return request<FollowUpsResponse>(`/api/saved-leads/${leadId}/followups`);
 }

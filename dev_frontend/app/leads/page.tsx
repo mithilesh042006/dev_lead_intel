@@ -3,7 +3,12 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
-import { ApiError, deleteSavedLead, listSavedLeads } from "@/lib/api";
+import {
+  ApiError,
+  deleteSavedLead,
+  listSavedLeads,
+  savedLeadsCsvUrl,
+} from "@/lib/api";
 import type { Priority, SavedLead } from "@/lib/types";
 
 const PRIORITY_STYLES: Record<Priority, string> = {
@@ -59,14 +64,28 @@ export default function SavedLeadsPage() {
   return (
     <div className="min-h-full bg-zinc-50 dark:bg-black">
       <main className="mx-auto w-full max-w-4xl px-6 py-12 sm:py-16">
-        <header className="mb-8">
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-3xl">
-            Saved leads
-          </h1>
-          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-            Highest score first. Open one to see its evidence, score breakdown
-            and cold-call opening.
-          </p>
+        <header className="mb-8 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-3xl">
+              Saved leads
+            </h1>
+            <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+              Highest score first. Open one to see its evidence, score breakdown
+              and cold-call opening.
+            </p>
+          </div>
+          {/* Only offer the download when there is something to download —
+              the endpoint 404s on an empty table. */}
+          {leads.length > 0 && (
+            <a
+              href={savedLeadsCsvUrl()}
+              className="shrink-0 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white
+                         transition hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900
+                         dark:hover:bg-zinc-300"
+            >
+              Download CSV
+            </a>
+          )}
         </header>
 
         {error && (

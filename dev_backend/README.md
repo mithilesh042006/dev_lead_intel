@@ -287,11 +287,22 @@ Follow-ups are nested under the lead (`/saved-leads/{lead_id}/followups`), so
 one can never be created against a lead that was never saved, and deleting a
 lead cascades to its follow-ups.
 
+### Exporting saved leads
+
+`GET /api/saved-leads/export/csv` returns every saved lead as one CSV, one row
+each: contact details, the pain point and its evidencing review, the
+recommendation, the full §16 score breakdown with its plain-English notes, where
+the lead came from, and the follow-up rollup (count, last contact, next due).
+
+Built in memory, so nothing accumulates on disk. The route is declared **before**
+`/saved-leads/{lead_id}` so "export" is never matched as a lead id.
+
 | Endpoint | Purpose |
 |---|---|
 | `POST /api/saved-leads` | Save selected leads (`job_id` + `lead_ids`) |
 | `GET /api/saved-leads` | All saved leads, highest score first |
 | `GET /api/saved-leads/ids` | Which leads are already saved, for pre-ticking the UI |
+| `GET /api/saved-leads/export/csv` | All saved leads as one CSV (46 columns) |
 | `GET /api/saved-leads/{lead_id}` | One saved lead in full |
 | `DELETE /api/saved-leads/{lead_id}` | Remove one |
 | `GET /api/saved-leads/{lead_id}/followups` | Follow-up history, newest first |

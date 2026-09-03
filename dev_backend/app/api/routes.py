@@ -13,6 +13,7 @@
     POST   /api/saved-leads         save the leads the user selected (§28)
     GET    /api/saved-leads
     GET    /api/saved-leads/ids      which leads are already saved
+    GET    /api/saved-leads/export/csv   all saved leads as CSV
     GET    /api/saved-leads/{lead_id}
     DELETE /api/saved-leads/{lead_id}
 
@@ -24,8 +25,10 @@ from __future__ import annotations
 
 import logging
 
+from datetime import datetime
+
 from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 
 from app import db
 from app.config import settings
@@ -47,7 +50,7 @@ from app.schemas.api import (
     lead_id_for,
     saved_lead_to_out,
 )
-from app.services import saved_leads_store
+from app.services import export_service, saved_leads_store
 from app.services.job_store import Job, store
 
 log = logging.getLogger(__name__)
@@ -302,6 +305,28 @@ def saved_lead_ids() -> list[str]:
     if not db.is_configured():
         return []  # not an error: the UI simply shows nothing as saved
     return sorted(saved_leads_store.saved_ids())
+
+
+@router.get("/saved-leads/export/csv")
+def export_saved_leads_csv() -> Response:
+    """Every saved lead, one row each, with full detail.
+
+    Declared before /saved-leads/{lead_id} so "export" is never matched as a
+    lead id. Built in memory rather than written to disk — there is nothing to
+    clean up afterwards.
+    """
+    _require_db()
+    rows, _ = saved_leads_store.list_saved(limit=5000)
+    if not rows:
+        raise HTTPException(status_code=404, detail="There are no saved leads to export.")
+
+    body = export_service.saved_leads_csv(rows)
+    filename = f"saved_leads_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    return Response(
+        content=body,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get("/saved-leads/{lead_id}", response_model=SavedLeadOut)
