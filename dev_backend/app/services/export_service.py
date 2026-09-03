@@ -147,3 +147,102 @@ def export_leads(leads: list[Lead], slug: str = "leads") -> tuple[Path, Path]:
 
     log.info("exported %d leads -> %s", len(leads), leads_path.name)
     return leads_path, evidence_path
+
+
+# --- Saved leads export ---------------------------------------------------- #
+
+SAVED_LEAD_COLUMNS = [
+    # identity + contact
+    "company_name", "category", "rating", "total_reviews",
+    "phone", "email", "website",
+    "address", "city", "google_maps_url", "latitude", "longitude",
+    # §33 fact — the customer's words
+    "pain_point", "pain_category", "pain_severity",
+    "review_rating", "review_text", "review_date", "review_url",
+    "supporting_reviews",
+    # §33 interpretation + recommendation
+    "customer_impact", "business_impact", "confidence",
+    "primary_opportunity", "secondary_opportunities",
+    "technology_signals", "website_reachable",
+    "sales_pitch",
+    # §16 score breakdown, not just the total
+    "lead_score", "lead_priority",
+    "software_pain_score", "business_potential_score", "review_evidence_score",
+    "digital_presence_score", "contactability_score", "score_notes",
+    # provenance
+    "saved_at", "source_location", "source_category", "llm_model",
+    # follow-up rollup
+    "followup_count", "last_followup_date", "last_followup_method",
+    "last_followup_outcome", "last_followup_notes", "next_followup_date",
+]
+
+
+def saved_lead_row(row) -> dict:
+    """Flatten one saved lead, its top evidence and its follow-up state.
+
+    One row per lead: the evidence and follow-ups are summarised rather than
+    exploded, because this file is for working a call list in a spreadsheet.
+    """
+    top = row.evidence[0] if row.evidence else None
+    followups = list(row.followups)
+    latest = followups[0] if followups else None
+
+    # The soonest future date anyone committed to, across all follow-ups.
+    next_dates = [f.next_followup_on for f in followups if f.next_followup_on]
+
+    return {
+        "company_name": row.company_name,
+        "category": row.category,
+        "rating": row.rating,
+        "total_reviews": row.total_reviews,
+        "phone": row.phone or "",
+        "email": row.email or "",
+        "website": row.website or "",
+        "address": row.address,
+        "city": row.city,
+        "google_maps_url": row.google_maps_url or "",
+        "latitude": row.latitude,
+        "longitude": row.longitude,
+        "pain_point": row.pain_point,
+        "pain_category": row.pain_category,
+        "pain_severity": row.pain_severity,
+        "review_rating": top.review_rating if top else "",
+        "review_text": top.review_text if top else "",
+        "review_date": _fmt_date(top.review_date) if top else "",
+        "review_url": (top.review_url or "") if top else "",
+        "supporting_reviews": len(row.evidence),
+        "customer_impact": row.customer_impact,
+        "business_impact": row.business_impact,
+        "confidence": row.confidence,
+        "primary_opportunity": row.primary_opportunity,
+        "secondary_opportunities": "; ".join(row.secondary_opportunities or []),
+        "technology_signals": "; ".join(row.technology_signals or []),
+        "website_reachable": row.website_reachable,
+        "sales_pitch": row.sales_pitch,
+        "lead_score": row.lead_score,
+        "lead_priority": row.priority,
+        "software_pain_score": row.software_pain_score,
+        "business_potential_score": row.business_potential_score,
+        "review_evidence_score": row.review_evidence_score,
+        "digital_presence_score": row.digital_presence_score,
+        "contactability_score": row.contactability_score,
+        "score_notes": " | ".join(row.score_notes or []),
+        "saved_at": _fmt_date(row.saved_at),
+        "source_location": row.source_location,
+        "source_category": row.source_category,
+        "llm_model": row.llm_model or "",
+        "followup_count": len(followups),
+        "last_followup_date": latest.happened_on.isoformat() if latest else "",
+        "last_followup_method": latest.method if latest else "",
+        "last_followup_outcome": latest.outcome if latest else "",
+        "last_followup_notes": latest.notes if latest else "",
+        "next_followup_date": min(next_dates).isoformat() if next_dates else "",
+    }
+
+
+def saved_leads_csv(rows) -> str:
+    """Return the CSV as text. Built in memory — no temp file to clean up."""
+    frame = pd.DataFrame([saved_lead_row(r) for r in rows], columns=SAVED_LEAD_COLUMNS)
+    # utf-8-sig so Excel reads accented names correctly; sanitised so a review
+    # beginning with "=" is not run as a formula.
+    return _sanitize_frame(frame).to_csv(index=False, encoding="utf-8-sig")

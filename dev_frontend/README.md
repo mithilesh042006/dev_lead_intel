@@ -45,13 +45,16 @@ or TanStack Query here would buy shared caching this app has no use for.
 
 ```
 app/
-  page.tsx                 search + polling + results orchestration
-  layout.tsx               fonts, metadata
+  layout.tsx               fonts, metadata, sidebar shell
+  page.tsx                 search + polling + results + lead selection
+  leads/page.tsx           saved leads
   globals.css              Tailwind v4 theme tokens
   components/
+    Sidebar.tsx            persistent nav: Search / Saved leads
     SearchForm.tsx         §5.1 search inputs
     ProgressPanel.tsx      §27 job progress, warnings, cancel
-    LeadCard.tsx           §21 results card
+    LeadCard.tsx           §21 results card, optionally selectable
+    SaveLeadsBar.tsx       §28 select-and-save action
 lib/
   api.ts                   typed client for the §26 endpoints
   types.ts                 mirrors app/schemas/api.py — keep in sync
@@ -72,7 +75,14 @@ search is free — the backend caches by search parameters.
 leads and scores are still complete and are displayed, with the warning from the
 backend shown above them. The run is not treated as a failure.
 
+## Saving leads
+
+Each result card carries a checkbox. Tick the leads worth calling, press **Save
+leads**, and only those rows reach Postgres — a search is not saved wholesale.
+Leads already in the database show a **Saved** badge, and re-saving one refreshes
+its analysis rather than creating a duplicate.
+
 ## Not built yet
 
-Search history, saved leads, lead status tracking, and team sharing are Phase 3
-(§38). There is no auth — this assumes an internal, local deployment.
+Lead status tracking, notes, and team sharing are Phase 3 (§38). There is no
+auth — this assumes an internal, local deployment.

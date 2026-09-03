@@ -3,10 +3,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import LeadCard from "@/app/components/LeadCard";
-import SaveSessionBar from "@/app/components/SaveSessionBar";
+import SaveLeadsBar from "@/app/components/SaveLeadsBar";
 import ProgressPanel from "@/app/components/ProgressPanel";
 import SearchForm from "@/app/components/SearchForm";
-import { ApiError, cancelSearch, csvUrl, getJob, getLeads, startSearch } from "@/lib/api";
+import {
+  ApiError,
+  cancelSearch,
+  csvUrl,
+  getJob,
+  getLeads,
+  savedLeadIds,
+  startSearch,
+} from "@/lib/api";
 import { isTerminal, type Job, type Lead, type SearchBody } from "@/lib/types";
 
 const POLL_INTERVAL_MS = 2000;
@@ -16,6 +24,8 @@ export default function Home() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [alreadySaved, setAlreadySaved] = useState<Set<string>>(new Set());
 
   // Held in a ref so the polling effect does not restart on every tick.
   const jobIdRef = useRef<string | null>(null);
@@ -47,6 +57,7 @@ export default function Home() {
       setLeads([]);
       setJob(null);
       setCancelling(false);
+      setSelected(new Set());
       try {
         const { job_id } = await startSearch(body);
         jobIdRef.current = job_id;
@@ -95,6 +106,32 @@ export default function Home() {
       clearInterval(timer);
     };
   }, [busy, syncJob]);
+
+  // Which leads are already saved. Failure here is not worth surfacing — the
+  // page simply shows nothing as saved.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const ids = await savedLeadIds();
+        if (!cancelled) setAlreadySaved(new Set(ids));
+      } catch {
+        /* saving may be disabled; leave the set empty */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [leads]);
+
+  function toggleLead(leadId: string, next: boolean) {
+    setSelected((current) => {
+      const updated = new Set(current);
+      if (next) updated.add(leadId);
+      else updated.delete(leadId);
+      return updated;
+    });
+  }
 
   const finished = job !== null && isTerminal(job.status);
   // Keyed off the job's own count, not the local array. If the two ever
@@ -153,15 +190,32 @@ export default function Home() {
               )}
             </div>
 
-            {/* Saving is explicit (§28): a search reaches the database only
-                when the user asks for it. */}
+            {/* Saving is explicit and per-lead (§28): only the ticked leads
+                reach the database. */}
             <div className="mb-5">
-              <SaveSessionBar job={job} />
+              <SaveLeadsBar
+                jobId={job.job_id}
+                selectedIds={[...selected]}
+                totalLeads={leads.length}
+                onSelectAll={() => setSelected(new Set(leads.map((l) => l.lead_id)))}
+                onClear={() => setSelected(new Set())}
+                onSaved={(ids) => {
+                  setAlreadySaved((current) => new Set([...current, ...ids]));
+                  setSelected(new Set());
+                }}
+              />
             </div>
 
             <div className="space-y-5">
               {leads.map((lead, i) => (
-                <LeadCard key={lead.lead_id} lead={lead} rank={i + 1} />
+                <LeadCard
+                  key={lead.lead_id}
+                  lead={lead}
+                  rank={i + 1}
+                  selected={selected.has(lead.lead_id)}
+                  onSelect={toggleLead}
+                  alreadySaved={alreadySaved.has(lead.lead_id)}
+                />
               ))}
             </div>
           </section>

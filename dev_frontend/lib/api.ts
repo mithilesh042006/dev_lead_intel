@@ -4,11 +4,15 @@
 // holds the Apify and Gemini credentials server-side (§37).
 
 import type {
+  FollowUp,
+  FollowUpBody,
+  FollowUpsResponse,
   Job,
   LeadsResponse,
+  SaveLeadsResult,
+  SavedLead,
+  SavedLeadsResponse,
   SearchBody,
-  SessionDetail,
-  SessionListResponse,
 } from "./types";
 
 export const API_BASE =
@@ -98,34 +102,61 @@ export function health(): Promise<{
   return request("/api/health");
 }
 
-// --- Saved sessions (§28) --------------------------------------------------
+// --- Saved leads (§28) -----------------------------------------------------
 
-export function saveSession(
+export function saveLeads(
   jobId: string,
-  name?: string,
-): Promise<SessionDetail> {
-  return request<SessionDetail>("/api/sessions", {
+  leadIds: string[],
+): Promise<SaveLeadsResult> {
+  return request<SaveLeadsResult>("/api/saved-leads", {
     method: "POST",
-    body: JSON.stringify({ job_id: jobId, name: name ?? null }),
+    body: JSON.stringify({ job_id: jobId, lead_ids: leadIds }),
   });
 }
 
-export function listSessions(limit = 50): Promise<SessionListResponse> {
-  return request<SessionListResponse>(`/api/sessions?limit=${limit}`);
+export function listSavedLeads(limit = 200): Promise<SavedLeadsResponse> {
+  return request<SavedLeadsResponse>(`/api/saved-leads?limit=${limit}`);
 }
 
-export function getSession(id: number): Promise<SessionDetail> {
-  return request<SessionDetail>(`/api/sessions/${id}`);
+/** Which leads are already saved, so results can show them as ticked. */
+export function savedLeadIds(): Promise<string[]> {
+  return request<string[]>("/api/saved-leads/ids");
 }
 
-export function renameSession(id: number, name: string): Promise<SessionDetail> {
-  return request<SessionDetail>(`/api/sessions/${id}`, {
-    method: "PATCH",
-    body: JSON.stringify({ job_id: "", name }),
+export function getSavedLead(leadId: string): Promise<SavedLead> {
+  return request<SavedLead>(`/api/saved-leads/${leadId}`);
+}
+
+export async function deleteSavedLead(leadId: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/api/saved-leads/${leadId}`, {
+    method: "DELETE",
+  });
+  if (!response.ok) throw new ApiError(await describeError(response), response.status);
+}
+
+// --- Follow-ups ------------------------------------------------------------
+
+/** Download URL for every saved lead. A plain <a href>, not fetch: the browser
+ *  handles the download from the Content-Disposition header. */
+export function savedLeadsCsvUrl(): string {
+  return `${API_BASE}/api/saved-leads/export/csv`;
+}
+
+export function listFollowUps(leadId: string): Promise<FollowUpsResponse> {
+  return request<FollowUpsResponse>(`/api/saved-leads/${leadId}/followups`);
+}
+
+export function addFollowUp(leadId: string, body: FollowUpBody): Promise<FollowUp> {
+  return request<FollowUp>(`/api/saved-leads/${leadId}/followups`, {
+    method: "POST",
+    body: JSON.stringify(body),
   });
 }
 
-export async function deleteSession(id: number): Promise<void> {
-  const response = await fetch(`${API_BASE}/api/sessions/${id}`, { method: "DELETE" });
+export async function deleteFollowUp(leadId: string, followUpId: number): Promise<void> {
+  const response = await fetch(
+    `${API_BASE}/api/saved-leads/${leadId}/followups/${followUpId}`,
+    { method: "DELETE" },
+  );
   if (!response.ok) throw new ApiError(await describeError(response), response.status);
 }

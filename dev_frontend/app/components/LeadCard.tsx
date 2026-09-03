@@ -42,21 +42,59 @@ function ScoreBar({ label, value, weight }: { label: string; value: number; weig
   );
 }
 
-export default function LeadCard({ lead, rank }: { lead: Lead; rank: number }) {
+interface LeadCardProps {
+  lead: Lead;
+  rank: number;
+  /** Show a selection checkbox. Omitted on the saved-leads page. */
+  selected?: boolean;
+  onSelect?: (leadId: string, next: boolean) => void;
+  /** Marks a lead already in the database, so re-saving is clearly a refresh. */
+  alreadySaved?: boolean;
+}
+
+export default function LeadCard({
+  lead,
+  rank,
+  selected,
+  onSelect,
+  alreadySaved,
+}: LeadCardProps) {
   const [showDetail, setShowDetail] = useState(false);
   const s = lead.scores;
   const topEvidence = lead.evidence[0];
+  const selectable = typeof onSelect === "function";
 
   return (
-    <article className="rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+    <article
+      className={`rounded-2xl border bg-white shadow-sm transition dark:bg-zinc-950 ${
+        selected
+          ? "border-zinc-900 ring-1 ring-zinc-900/10 dark:border-zinc-300 dark:ring-zinc-100/10"
+          : "border-zinc-200 dark:border-zinc-800"
+      }`}
+    >
       {/* --- Header --- */}
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-zinc-100 p-5 dark:border-zinc-800">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
+        <div className="flex min-w-0 gap-3">
+          {selectable && (
+            <input
+              type="checkbox"
+              checked={Boolean(selected)}
+              onChange={(e) => onSelect(lead.lead_id, e.target.checked)}
+              aria-label={`Select ${lead.company_name}`}
+              className="mt-1.5 h-4 w-4 shrink-0 rounded border-zinc-300 dark:border-zinc-600"
+            />
+          )}
+          <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-medium text-zinc-400 dark:text-zinc-500">#{rank}</span>
             <h3 className="truncate text-lg font-semibold text-zinc-900 dark:text-zinc-50">
               {lead.company_name}
             </h3>
+            {alreadySaved && (
+              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
+                Saved
+              </span>
+            )}
           </div>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
             {lead.category || "—"}
@@ -64,6 +102,7 @@ export default function LeadCard({ lead, rank }: { lead: Lead; rank: number }) {
             {lead.total_reviews > 0 && <> · {lead.total_reviews.toLocaleString()} reviews</>}
             {lead.city && <> · {lead.city}</>}
           </p>
+          </div>
         </div>
 
         <div className="flex items-center gap-3">

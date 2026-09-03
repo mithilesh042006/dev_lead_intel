@@ -255,29 +255,68 @@ Cancellation is cooperative: `JobCancelled` derives from `BaseException`
 specifically so the pipeline's `except Exception` (which exists to honour §35)
 cannot swallow it.
 
-## Saved sessions (§28)
+## Saved leads (§28)
 
-Postgres (Neon) stores searches the user chooses to keep. **Saving is explicit** —
-a search reaches the database only when Save is pressed. Runs are cheap to
-repeat thanks to the disk cache, so auto-saving every search would fill the
-table with noise nobody asked to keep.
+Postgres (Neon) stores the leads a user chooses to keep. **Saving is explicit
+and per-lead**: tick the leads worth calling on the results page and press Save.
+A search that returns five businesses where only one is worth a call should put
+one row in the database, not five.
 
 | Table | Holds | §28 mapping |
 |---|---|---|
-| `search_sessions` | Search parameters and run outcome | `jobs` + lead rollup |
-| `saved_leads` | One row per returned lead | `businesses` + `leads` |
+| `saved_leads` | One row per kept business | `businesses` + `leads` |
 | `saved_evidence` | One row per software-related review | `reviews` + `review_analysis` |
+| `lead_followups` | One row per logged contact attempt | beyond §28 |
 
-A session is a **snapshot**, not a live join. Re-running the same search later
-must not silently rewrite what a rep already saved and acted on — ratings move,
-reviews get deleted, and a saved session records what was true when it was saved.
+`lead_id` is unique and derives from the Google place id, so saving the same
+business twice **updates** the row rather than duplicating it — that is how a rep
+refreshes a lead from a newer search. The API reports `created` vs `updated`
+separately so the UI can say which happened.
 
-Deleting a session cascades to its leads and evidence.
+A stored lead is a **snapshot** of the analysis when it was saved. Ratings move
+and reviews get deleted; a lead someone already read and acted on must not
+silently rewrite itself.
 
-`DATABASE_URL` is optional: leave it empty and the pipeline runs exactly as
-before, still writing CSV, with only the save feature disabled. A database that
-is unreachable at boot logs the failure and disables saving rather than stopping
-the API from serving searches — `GET /api/health` reports `database_ready`.
+### Follow-ups
+
+Each saved lead carries a follow-up log — the human half of the product. The
+pipeline says who to call and why; `lead_followups` records what happened when
+someone did: date, method, outcome, notes, and an optional next follow-up date.
+
+Follow-ups are nested under the lead (`/saved-leads/{lead_id}/followups`), so
+one can never be created against a lead that was never saved, and deleting a
+lead cascades to its follow-ups.
+
+### Exporting saved leads
+
+`GET /api/saved-leads/export/csv` returns every saved lead as one CSV, one row
+each: contact details, the pain point and its evidencing review, the
+recommendation, the full §16 score breakdown with its plain-English notes, where
+the lead came from, and the follow-up rollup (count, last contact, next due).
+
+Built in memory, so nothing accumulates on disk. The route is declared **before**
+`/saved-leads/{lead_id}` so "export" is never matched as a lead id.
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /api/saved-leads` | Save selected leads (`job_id` + `lead_ids`) |
+| `GET /api/saved-leads` | All saved leads, highest score first |
+| `GET /api/saved-leads/ids` | Which leads are already saved, for pre-ticking the UI |
+| `GET /api/saved-leads/export/csv` | All saved leads as one CSV (46 columns) |
+| `GET /api/saved-leads/{lead_id}` | One saved lead in full |
+| `DELETE /api/saved-leads/{lead_id}` | Remove one |
+| `GET /api/saved-leads/{lead_id}/followups` | Follow-up history, newest first |
+| `POST /api/saved-leads/{lead_id}/followups` | Log a follow-up |
+| `DELETE /api/saved-leads/{lead_id}/followups/{id}` | Remove one |
+
+They sit on their own `/saved-leads` prefix rather than under `/leads`, because
+`/leads/saved` would collide with `/leads/{lead_id}` and only work by accident
+of route-registration order.
+
+`DATABASE_URL` is optional: leave it empty and the pipeline runs as before,
+still writing CSV, with only saving disabled. An unreachable database logs and
+disables saving rather than stopping the API — `GET /api/health` reports
+`database_ready`.
 
 ## Not built yet
 
