@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import LeadCard from "@/app/components/LeadCard";
+import SaveSessionBar from "@/app/components/SaveSessionBar";
 import ProgressPanel from "@/app/components/ProgressPanel";
 import SearchForm from "@/app/components/SearchForm";
 import { ApiError, cancelSearch, csvUrl, getJob, getLeads, startSearch } from "@/lib/api";
@@ -106,7 +107,7 @@ export default function Home() {
       <main className="mx-auto w-full max-w-4xl px-6 py-12 sm:py-16">
         <header className="mb-8">
           <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-3xl">
-            AI Lead Intelligence
+            Search
           </h1>
           <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
             Finds local businesses, reads their customer reviews for software pain
@@ -150,6 +151,12 @@ export default function Home() {
                   </a>
                 </div>
               )}
+            </div>
+
+            {/* Saving is explicit (§28): a search reaches the database only
+                when the user asks for it. */}
+            <div className="mb-5">
+              <SaveSessionBar job={job} />
             </div>
 
             <div className="space-y-5">

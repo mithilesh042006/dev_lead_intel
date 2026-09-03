@@ -3,7 +3,13 @@
 // No API keys live here. The browser only ever talks to our own backend, which
 // holds the Apify and Gemini credentials server-side (§37).
 
-import type { Job, LeadsResponse, SearchBody } from "./types";
+import type {
+  Job,
+  LeadsResponse,
+  SearchBody,
+  SessionDetail,
+  SessionListResponse,
+} from "./types";
 
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
@@ -90,4 +96,36 @@ export function health(): Promise<{
   gemini_configured: boolean;
 }> {
   return request("/api/health");
+}
+
+// --- Saved sessions (§28) --------------------------------------------------
+
+export function saveSession(
+  jobId: string,
+  name?: string,
+): Promise<SessionDetail> {
+  return request<SessionDetail>("/api/sessions", {
+    method: "POST",
+    body: JSON.stringify({ job_id: jobId, name: name ?? null }),
+  });
+}
+
+export function listSessions(limit = 50): Promise<SessionListResponse> {
+  return request<SessionListResponse>(`/api/sessions?limit=${limit}`);
+}
+
+export function getSession(id: number): Promise<SessionDetail> {
+  return request<SessionDetail>(`/api/sessions/${id}`);
+}
+
+export function renameSession(id: number, name: string): Promise<SessionDetail> {
+  return request<SessionDetail>(`/api/sessions/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ job_id: "", name }),
+  });
+}
+
+export async function deleteSession(id: number): Promise<void> {
+  const response = await fetch(`${API_BASE}/api/sessions/${id}`, { method: "DELETE" });
+  if (!response.ok) throw new ApiError(await describeError(response), response.status);
 }

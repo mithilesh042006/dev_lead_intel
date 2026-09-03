@@ -255,10 +255,34 @@ Cancellation is cooperative: `JobCancelled` derives from `BaseException`
 specifically so the pipeline's `except Exception` (which exists to honour §35)
 cannot swallow it.
 
+## Saved sessions (§28)
+
+Postgres (Neon) stores searches the user chooses to keep. **Saving is explicit** —
+a search reaches the database only when Save is pressed. Runs are cheap to
+repeat thanks to the disk cache, so auto-saving every search would fill the
+table with noise nobody asked to keep.
+
+| Table | Holds | §28 mapping |
+|---|---|---|
+| `search_sessions` | Search parameters and run outcome | `jobs` + lead rollup |
+| `saved_leads` | One row per returned lead | `businesses` + `leads` |
+| `saved_evidence` | One row per software-related review | `reviews` + `review_analysis` |
+
+A session is a **snapshot**, not a live join. Re-running the same search later
+must not silently rewrite what a rep already saved and acted on — ratings move,
+reviews get deleted, and a saved session records what was true when it was saved.
+
+Deleting a session cascades to its leads and evidence.
+
+`DATABASE_URL` is optional: leave it empty and the pipeline runs exactly as
+before, still writing CSV, with only the save feature disabled. A database that
+is unreachable at boot logs the failure and disables saving rather than stopping
+the API from serving searches — `GET /api/health` reports `database_ready`.
+
 ## Not built yet
 
-- PostgreSQL persistence (§28) — jobs live in memory, so restarting the server
-  loses job history. CSVs on disk survive.
+- In-flight jobs still live in memory, so restarting the server loses unsaved
+  job history. Saved sessions and CSVs on disk survive.
 - Authentication (§37) — the API is unauthenticated. Do not expose it publicly.
 - `GooglePlacesProvider` — the abstraction is in place, but note the Places API
   caps reviews at 5 per place and its terms restrict storing review content,

@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     website_max_pages: int = 3
     website_concurrency: int = 8
 
+    # --- Database (§28). Empty disables persistence; the pipeline still runs
+    # and still writes CSV, only the "save session" feature turns off. ---
+    database_url: str = ""
+
     # --- Local paths ---
     cache_dir: Path = BASE_DIR / "data" / "cache"
     output_dir: Path = BASE_DIR / "data" / "out"

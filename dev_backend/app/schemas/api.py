@@ -193,3 +193,106 @@ class LeadsResponse(BaseModel):
     status: str
     count: int
     leads: list[LeadOut]
+
+
+# --- Saved sessions (§28) -------------------------------------------------- #
+
+
+class SaveSessionBody(BaseModel):
+    job_id: str
+    name: Optional[str] = Field(default=None, max_length=200)
+
+
+class SessionSummary(BaseModel):
+    """List view — no leads, so the sessions page stays cheap to load."""
+
+    id: int
+    name: str
+    location: str
+    category: str
+    min_rating: float
+    max_rating: float
+    minimum_reviews: int
+    requested_leads: int
+    status: str
+    lead_count: int
+    hot_count: int
+    top_score: int
+    llm_model: Optional[str] = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class SessionDetail(SessionSummary):
+    max_places: Optional[int] = None
+    strict_filters: bool = False
+    warnings: list[str] = Field(default_factory=list)
+    stats: dict = Field(default_factory=dict)
+    leads: list[LeadOut] = Field(default_factory=list)
+
+
+class SessionListResponse(BaseModel):
+    total: int
+    count: int
+    sessions: list[SessionSummary]
+
+
+def saved_lead_to_out(row) -> LeadOut:
+    """Rebuild the API shape from a persisted row.
+
+    Kept in one place so the sessions page and a live search render through the
+    same LeadOut contract and the frontend needs no second code path.
+    """
+    return LeadOut(
+        lead_id=row.lead_id,
+        company_name=row.company_name,
+        category=row.category,
+        rating=row.rating,
+        total_reviews=row.total_reviews,
+        phone=row.phone,
+        email=row.email,
+        website=row.website,
+        address=row.address,
+        city=row.city,
+        google_maps_url=row.google_maps_url,
+        latitude=row.latitude,
+        longitude=row.longitude,
+        pain_point=row.pain_point,
+        pain_category=row.pain_category,
+        pain_severity=row.pain_severity,
+        customer_impact=row.customer_impact,
+        business_impact=row.business_impact,
+        confidence=row.confidence,
+        primary_opportunity=row.primary_opportunity,
+        secondary_opportunities=list(row.secondary_opportunities or []),
+        technology_signals=list(row.technology_signals or []),
+        website_reachable=row.website_reachable,
+        scores=ScoresOut(
+            software_pain_score=row.software_pain_score,
+            business_potential_score=row.business_potential_score,
+            review_evidence_score=row.review_evidence_score,
+            digital_presence_score=row.digital_presence_score,
+            contactability_score=row.contactability_score,
+            lead_score=row.lead_score,
+            priority=row.priority,
+            notes=list(row.score_notes or []),
+        ),
+        sales_pitch=row.sales_pitch,
+        evidence=[
+            EvidenceOut(
+                review_text=e.review_text,
+                review_rating=e.review_rating,
+                review_date=e.review_date,
+                review_url=e.review_url,
+                pain_point=e.pain_point,
+                pain_category=e.pain_category,
+                severity=e.severity,
+                customer_impact=e.customer_impact,
+                business_impact=e.business_impact,
+                recommended_solution=e.recommended_solution,
+                confidence=e.confidence,
+            )
+            for e in row.evidence
+        ],
+    )

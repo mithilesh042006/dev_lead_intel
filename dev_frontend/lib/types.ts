@@ -118,3 +118,36 @@ export const TERMINAL_STATUSES: JobStatus[] = [
 export function isTerminal(status: JobStatus): boolean {
   return TERMINAL_STATUSES.includes(status);
 }
+
+// --- Saved sessions (§28) --------------------------------------------------
+
+export interface SessionSummary {
+  id: number;
+  name: string;
+  location: string;
+  category: string;
+  min_rating: number;
+  max_rating: number;
+  minimum_reviews: number;
+  requested_leads: number;
+  status: string;
+  lead_count: number;
+  hot_count: number;
+  top_score: number;
+  llm_model: string | null;
+  created_at: string;
+}
+
+export interface SessionDetail extends SessionSummary {
+  max_places: number | null;
+  strict_filters: boolean;
+  warnings: string[];
+  stats: Record<string, unknown>;
+  leads: Lead[];
+}
+
+export interface SessionListResponse {
+  total: number;
+  count: number;
+  sessions: SessionSummary[];
+}
