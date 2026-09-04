@@ -74,18 +74,28 @@ export default function SavedLeadsPage() {
               and cold-call opening.
             </p>
           </div>
-          {/* Only offer the download when there is something to download —
-              the endpoint 404s on an empty table. */}
-          {leads.length > 0 && (
-            <a
-              href={savedLeadsCsvUrl()}
-              className="shrink-0 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white
+          <div className="flex shrink-0 flex-wrap gap-2">
+            {/* Only offer the download when there is something to download —
+                the endpoint 404s on an empty table. */}
+            {leads.length > 0 && (
+              <a
+                href={savedLeadsCsvUrl()}
+                className="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700
+                           transition hover:bg-white dark:border-zinc-700 dark:text-zinc-300
+                           dark:hover:bg-zinc-900"
+              >
+                Download CSV
+              </a>
+            )}
+            <Link
+              href="/leads/new"
+              className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white
                          transition hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900
                          dark:hover:bg-zinc-300"
             >
-              Download CSV
-            </a>
-          )}
+              Add lead manually
+            </Link>
+          </div>
         </header>
 
         {error && (
@@ -103,8 +113,14 @@ export default function SavedLeadsPage() {
             </p>
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
               Run a search, tick the leads worth keeping, then press{" "}
-              <span className="font-medium">Save leads</span>.
+              <span className="font-medium">Save leads</span> — or add one by hand.
             </p>
+            <Link
+              href="/leads/new"
+              className="mt-4 inline-block rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white dark:bg-zinc-100 dark:text-zinc-900"
+            >
+              Add lead manually
+            </Link>
           </div>
         ) : (
           <>
@@ -136,6 +152,11 @@ export default function SavedLeadsPage() {
                       {lead.company_name}
                     </Link>
                     <p className="mt-0.5 truncate text-xs text-zinc-500 dark:text-zinc-400">
+                      {lead.is_manual && (
+                        <span className="mr-1.5 rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                          Manual
+                        </span>
+                      )}
                       {lead.category || "—"}
                       {lead.rating !== null && <> · {lead.rating.toFixed(1)}★</>}
                       {lead.city && <> · {lead.city}</>}

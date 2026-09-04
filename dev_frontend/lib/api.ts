@@ -9,6 +9,8 @@ import type {
   FollowUpBody,
   FollowUpsResponse,
   Job,
+  ManualLeadBody,
+  ManualLeadOptions,
   LeadsResponse,
   SaveLeadsResult,
   SavedLead,
@@ -172,4 +174,17 @@ export async function deleteFollowUp(leadId: string, followUpId: number): Promis
 
 export function getDashboard(): Promise<Dashboard> {
   return request<Dashboard>("/api/dashboard");
+}
+
+// --- Manual lead entry -----------------------------------------------------
+
+export function manualLeadOptions(): Promise<ManualLeadOptions> {
+  return request<ManualLeadOptions>("/api/saved-leads/options");
+}
+
+export function createManualLead(body: ManualLeadBody): Promise<SavedLead> {
+  return request<SavedLead>("/api/saved-leads/manual", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
 }

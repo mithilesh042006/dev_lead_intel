@@ -13,7 +13,7 @@ from typing import Optional
 from pydantic import BaseModel, Field, field_validator
 
 from app.db_models import FOLLOWUP_METHODS
-from app.models import Lead
+from app.models import PAIN_CATEGORIES, Lead
 
 
 def lead_id_for(place_id: str) -> str:
@@ -222,6 +222,7 @@ class SavedLeadOut(LeadOut):
     source_location: str = ""
     source_category: str = ""
     llm_model: Optional[str] = None
+    is_manual: bool = False
     saved_at: datetime
 
 
@@ -287,6 +288,7 @@ def saved_lead_to_out(row) -> SavedLeadOut:
         source_location=row.source_location,
         source_category=row.source_category,
         llm_model=row.llm_model,
+        is_manual=row.is_manual,
         saved_at=row.saved_at,
     )
 
@@ -381,3 +383,74 @@ class DashboardOut(BaseModel):
     due_soon: list[DashboardLeadRef]
     needs_attention: list[DashboardLeadRef]
     recent: list[DashboardLeadRef]
+
+
+# --- Manual lead entry ----------------------------------------------------- #
+
+
+class ManualLeadBody(BaseModel):
+    """Hand-entered lead. Only the company name is genuinely required —
+    everything else a rep may not know yet, and a half-filled lead is more
+    useful than one they abandoned because a field was mandatory."""
+
+    company_name: str = Field(min_length=1, max_length=300)
+    category: str = Field(default="", max_length=200)
+    city: str = Field(default="", max_length=120)
+    address: str = Field(default="", max_length=1000)
+
+    phone: str = Field(default="", max_length=60)
+    email: str = Field(default="", max_length=200)
+    website: str = Field(default="", max_length=1000)
+    google_maps_url: str = Field(default="", max_length=1000)
+
+    rating: Optional[float] = Field(default=None, ge=0, le=5)
+    total_reviews: int = Field(default=0, ge=0, le=10_000_000)
+
+    pain_point: str = Field(default="", max_length=2000)
+    pain_category: str = Field(default="", max_length=80)
+    pain_severity: str = Field(default="", max_length=20)
+    business_impact: str = Field(default="", max_length=2000)
+
+    primary_opportunity: str = Field(default="", max_length=2000)
+    technology_signals: str = Field(default="", max_length=500)
+    sales_pitch: str = Field(default="", max_length=4000)
+
+    priority: str = Field(default="WARM")
+
+    @field_validator("priority")
+    @classmethod
+    def _known_priority(cls, v: str) -> str:
+        if v not in ("HOT", "WARM", "COLD", "LOW"):
+            raise ValueError("priority must be HOT, WARM, COLD or LOW")
+        return v
+
+    @field_validator("pain_category")
+    @classmethod
+    def _known_pain_category(cls, v: str) -> str:
+        if v and v not in PAIN_CATEGORIES:
+            raise ValueError(f"pain_category must be one of: {', '.join(PAIN_CATEGORIES)}")
+        return v
+
+    @field_validator("pain_severity")
+    @classmethod
+    def _known_severity(cls, v: str) -> str:
+        if v and v not in ("high", "medium", "low"):
+            raise ValueError("pain_severity must be high, medium or low")
+        return v
+
+    @field_validator("email")
+    @classmethod
+    def _plausible_email(cls, v: str) -> str:
+        # Deliberately loose: this is typed by a human from a business card,
+        # not harvested. Reject only what is obviously not an address.
+        if v and ("@" not in v or "." not in v.split("@")[-1]):
+            raise ValueError("that does not look like an email address")
+        return v
+
+
+class ManualLeadOptions(BaseModel):
+    """Vocabularies the form needs, so the frontend never hardcodes them."""
+
+    pain_categories: list[str]
+    severities: list[str]
+    priorities: list[str]

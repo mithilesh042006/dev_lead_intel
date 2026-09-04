@@ -53,6 +53,10 @@ class SavedLead(Base):
     lead_id: Mapped[str] = mapped_column(String(32), unique=True, index=True)
 
     # --- where this lead came from ---
+    # A manually entered lead has no review evidence, so its score is a human
+    # judgement rather than a computed one. Flagged so the two are never
+    # silently mixed in stats or rankings.
+    is_manual: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     source_job_id: Mapped[str | None] = mapped_column(String(64))
     source_location: Mapped[str] = mapped_column(String(200), default="")
     source_category: Mapped[str] = mapped_column(String(200), default="")

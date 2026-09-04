@@ -125,6 +125,7 @@ export interface SavedLead extends Lead {
   source_location: string;
   source_category: string;
   llm_model: string | null;
+  is_manual: boolean;
   saved_at: string;
 }
 
@@ -194,4 +195,33 @@ export interface Dashboard {
   due_soon: DashboardLeadRef[];
   needs_attention: DashboardLeadRef[];
   recent: DashboardLeadRef[];
+}
+
+// --- Manual lead entry -----------------------------------------------------
+
+export interface ManualLeadBody {
+  company_name: string;
+  category: string;
+  city: string;
+  address: string;
+  phone: string;
+  email: string;
+  website: string;
+  google_maps_url: string;
+  rating: number | null;
+  total_reviews: number;
+  pain_point: string;
+  pain_category: string;
+  pain_severity: string;
+  business_impact: string;
+  primary_opportunity: string;
+  technology_signals: string;
+  sales_pitch: string;
+  priority: Priority;
+}
+
+export interface ManualLeadOptions {
+  pain_categories: string[];
+  severities: string[];
+  priorities: Priority[];
 }

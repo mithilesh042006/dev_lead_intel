@@ -10,6 +10,7 @@ import logging
 from dataclasses import dataclass
 from datetime import date
 from typing import Optional
+from uuid import uuid4
 
 from sqlalchemy import func, select
 
@@ -327,3 +328,62 @@ def dashboard_stats(today: date, due_window_days: int = 7) -> dict:
             "needs_attention": uncontacted[:10],
             "recent": recent,
         }
+
+
+# --- Manual entry ---------------------------------------------------------- #
+
+# A manual lead has no review evidence, so there is nothing to compute a score
+# from. The user states a priority instead and this is the score recorded for
+# it — the midpoint of each §17 band, so manual leads sort sensibly alongside
+# computed ones without pretending to a precision they do not have.
+PRIORITY_NOMINAL_SCORE = {"HOT": 90, "WARM": 70, "COLD": 50, "LOW": 25}
+
+
+def create_manual_lead(data: dict) -> SavedLead:
+    """Insert a hand-entered lead. Always creates — never merges into another."""
+    priority = data.get("priority") or "WARM"
+
+    row = SavedLead(
+        # No place id exists, so the id is random rather than derived. Two
+        # manual entries for the same business are the user's call to make.
+        lead_id=uuid4().hex[:12],
+        is_manual=True,
+        source_job_id=None,
+        source_location=(data.get("city") or "").strip(),
+        source_category=(data.get("category") or "").strip(),
+        llm_model=None,
+        company_name=data["company_name"].strip(),
+        category=(data.get("category") or "").strip(),
+        rating=data.get("rating"),
+        total_reviews=data.get("total_reviews") or 0,
+        phone=(data.get("phone") or "").strip() or None,
+        email=(data.get("email") or "").strip() or None,
+        website=(data.get("website") or "").strip() or None,
+        address=(data.get("address") or "").strip(),
+        city=(data.get("city") or "").strip(),
+        google_maps_url=(data.get("google_maps_url") or "").strip() or None,
+        pain_point=(data.get("pain_point") or "").strip(),
+        pain_category=(data.get("pain_category") or "").strip(),
+        pain_severity=(data.get("pain_severity") or "").strip(),
+        customer_impact="",
+        business_impact=(data.get("business_impact") or "").strip(),
+        confidence=0.0,
+        primary_opportunity=(data.get("primary_opportunity") or "").strip(),
+        secondary_opportunities=[],
+        technology_signals=[
+            t.strip() for t in (data.get("technology_signals") or "").split(",") if t.strip()
+        ],
+        website_reachable=bool(data.get("website")),
+        sales_pitch=(data.get("sales_pitch") or "").strip(),
+        lead_score=PRIORITY_NOMINAL_SCORE.get(priority, 50),
+        priority=priority,
+        # Subscores stay at zero: nothing was measured. The note says so rather
+        # than leaving a reader to assume the bars were computed.
+        score_notes=["Entered manually — priority set by hand, not scored from review evidence."],
+    )
+
+    with session_scope() as db:
+        db.add(row)
+        db.flush()
+        db.refresh(row)
+        return row

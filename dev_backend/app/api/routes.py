@@ -13,6 +13,8 @@
     POST   /api/saved-leads         save the leads the user selected (§28)
     GET    /api/saved-leads
     GET    /api/saved-leads/ids      which leads are already saved
+    GET    /api/saved-leads/options  vocabularies for the manual form
+    POST   /api/saved-leads/manual   add a lead by hand
     GET    /api/saved-leads/export/csv   all saved leads as CSV
 
     GET    /api/dashboard           pipeline rollup + worklists
@@ -34,10 +36,12 @@ from fastapi.responses import Response
 
 from app import db
 from app.config import settings
-from app.models import SearchRequest
+from app.models import PAIN_CATEGORIES, SearchRequest
 from app.pipeline import LeadPipeline
 from app.schemas.api import (
     DashboardOut,
+    ManualLeadBody,
+    ManualLeadOptions,
     FollowUpBody,
     FollowUpOut,
     FollowUpsResponse,
@@ -320,6 +324,33 @@ def saved_lead_ids() -> list[str]:
     if not db.is_configured():
         return []  # not an error: the UI simply shows nothing as saved
     return sorted(saved_leads_store.saved_ids())
+
+
+@router.get("/saved-leads/options", response_model=ManualLeadOptions)
+def manual_lead_options() -> ManualLeadOptions:
+    """Vocabularies for the manual-entry form, so the frontend never hardcodes
+    a list that the backend then rejects."""
+    return ManualLeadOptions(
+        pain_categories=list(PAIN_CATEGORIES),
+        severities=["high", "medium", "low"],
+        priorities=["HOT", "WARM", "COLD", "LOW"],
+    )
+
+
+@router.post("/saved-leads/manual", response_model=SavedLeadOut, status_code=201)
+def create_manual_lead(body: ManualLeadBody) -> SavedLeadOut:
+    """Add a lead by hand — one the pipeline never found.
+
+    Always creates a new row. Unlike a pipeline save, there is no place id to
+    merge on, so two entries for the same business are the user's call.
+    """
+    _require_db()
+    try:
+        row = saved_leads_store.create_manual_lead(body.model_dump())
+    except Exception as exc:
+        log.exception("failed to create manual lead")
+        raise HTTPException(status_code=502, detail=f"Could not save to the database: {exc}")
+    return saved_lead_to_out(row)
 
 
 @router.get("/saved-leads/export/csv")
