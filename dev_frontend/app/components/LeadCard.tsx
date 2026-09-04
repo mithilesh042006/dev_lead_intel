@@ -121,6 +121,85 @@ export default function LeadCard({
       </div>
 
       <div className="space-y-5 p-5">
+        {/* Contact first: a rep opens this card to make a call, so the number
+            and the two links they need are above the analysis, not below it. */}
+        <section className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <SectionLabel>Contact</SectionLabel>
+            <dl className="space-y-1 text-sm">
+              <div className="flex gap-2">
+                <dt className="w-14 shrink-0 text-zinc-400">Phone</dt>
+                <dd className="min-w-0 text-zinc-700 dark:text-zinc-300">
+                  {lead.phone ? (
+                    <a href={`tel:${lead.phone}`} className="hover:underline">
+                      {lead.phone}
+                    </a>
+                  ) : (
+                    <span className="text-zinc-400">—</span>
+                  )}
+                </dd>
+              </div>
+              <div className="flex gap-2">
+                <dt className="w-14 shrink-0 text-zinc-400">Email</dt>
+                <dd className="min-w-0 truncate text-zinc-700 dark:text-zinc-300">
+                  {lead.email ? (
+                    <a href={`mailto:${lead.email}`} className="hover:underline">
+                      {lead.email}
+                    </a>
+                  ) : (
+                    <span className="text-zinc-400">—</span>
+                  )}
+                </dd>
+              </div>
+            </dl>
+
+            {(lead.google_maps_url || lead.website) && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {lead.google_maps_url && (
+                  <a
+                    href={lead.google_maps_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                  >
+                    View on Maps
+                  </a>
+                )}
+                {lead.website && (
+                  <a
+                    href={lead.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                  >
+                    Visit website
+                  </a>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <SectionLabel>Technology</SectionLabel>
+            {lead.technology_signals.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {lead.technology_signals.map((sig) => (
+                  <span
+                    key={sig}
+                    className="rounded-md bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+                  >
+                    {sig}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-zinc-400">
+                {lead.website_reachable ? "None detected" : "No reachable website"}
+              </p>
+            )}
+          </div>
+        </section>
+
         {/* --- §33 FACT: what the customer actually said --- */}
         <section>
           <SectionLabel>Customer pain point · fact</SectionLabel>
@@ -175,59 +254,6 @@ export default function LeadCard({
             </p>
           </section>
         )}
-
-        {/* --- Contact + tech --- */}
-        <section className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <SectionLabel>Contact</SectionLabel>
-            <dl className="space-y-1 text-sm">
-              <div className="flex gap-2">
-                <dt className="w-14 shrink-0 text-zinc-400">Phone</dt>
-                <dd className="min-w-0 text-zinc-700 dark:text-zinc-300">
-                  {lead.phone ? (
-                    <a href={`tel:${lead.phone}`} className="hover:underline">
-                      {lead.phone}
-                    </a>
-                  ) : (
-                    <span className="text-zinc-400">—</span>
-                  )}
-                </dd>
-              </div>
-              <div className="flex gap-2">
-                <dt className="w-14 shrink-0 text-zinc-400">Email</dt>
-                <dd className="min-w-0 truncate text-zinc-700 dark:text-zinc-300">
-                  {lead.email ? (
-                    <a href={`mailto:${lead.email}`} className="hover:underline">
-                      {lead.email}
-                    </a>
-                  ) : (
-                    <span className="text-zinc-400">—</span>
-                  )}
-                </dd>
-              </div>
-            </dl>
-          </div>
-
-          <div>
-            <SectionLabel>Technology</SectionLabel>
-            {lead.technology_signals.length > 0 ? (
-              <div className="flex flex-wrap gap-1.5">
-                {lead.technology_signals.map((sig) => (
-                  <span
-                    key={sig}
-                    className="rounded-md bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
-                  >
-                    {sig}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-zinc-400">
-                {lead.website_reachable ? "None detected" : "No reachable website"}
-              </p>
-            )}
-          </div>
-        </section>
 
         {/* --- Pitch --- */}
         {lead.sales_pitch && (
@@ -297,30 +323,6 @@ export default function LeadCard({
             </div>
           )}
         </section>
-      </div>
-
-      {/* --- Actions --- */}
-      <div className="flex flex-wrap gap-2 border-t border-zinc-100 px-5 py-3 dark:border-zinc-800">
-        {lead.google_maps_url && (
-          <a
-            href={lead.google_maps_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
-          >
-            View on Maps
-          </a>
-        )}
-        {lead.website && (
-          <a
-            href={lead.website}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
-          >
-            Visit website
-          </a>
-        )}
       </div>
     </article>
   );

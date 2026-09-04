@@ -308,9 +308,19 @@ class FollowUpBody(BaseModel):
     @field_validator("method")
     @classmethod
     def _known_method(cls, v: str) -> str:
-        if v not in FOLLOWUP_METHODS:
-            raise ValueError(f"method must be one of: {', '.join(FOLLOWUP_METHODS)}")
-        return v
+        """FOLLOWUP_METHODS is a suggestion list, not a closed enum.
+
+        A rep who reached someone on Instagram should be able to record that.
+        The custom label is stored in `method` itself rather than behind a
+        generic "Other", so the CSV and any grouping show what actually
+        happened instead of a bucket.
+        """
+        cleaned = (v or "").strip()
+        if not cleaned:
+            raise ValueError("method cannot be empty")
+        if len(cleaned) > 40:
+            raise ValueError("method must be 40 characters or fewer")
+        return cleaned
 
     @field_validator("next_followup_on")
     @classmethod

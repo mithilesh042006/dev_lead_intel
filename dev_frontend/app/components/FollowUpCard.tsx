@@ -13,6 +13,9 @@ const FIELD =
 
 const LABEL = "mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300";
 
+/** The option that reveals the free-text field. */
+const OTHER = "Other";
+
 function today(): string {
   // Local date, not toISOString() — that shifts to UTC and can log the wrong
   // day for anyone east or west of it.
@@ -37,6 +40,8 @@ export default function FollowUpCard({ leadId }: { leadId: string }) {
   const [saving, setSaving] = useState(false);
   const [happenedOn, setHappenedOn] = useState(today());
   const [method, setMethod] = useState("Call");
+  // Only meaningful while "Other" is selected; see submit().
+  const [customMethod, setCustomMethod] = useState("");
   const [outcome, setOutcome] = useState("");
   const [notes, setNotes] = useState("");
   const [nextOn, setNextOn] = useState("");
@@ -66,6 +71,7 @@ export default function FollowUpCard({ leadId }: { leadId: string }) {
   function resetForm() {
     setHappenedOn(today());
     setMethod("Call");
+    setCustomMethod("");
     setOutcome("");
     setNotes("");
     setNextOn("");
@@ -78,7 +84,10 @@ export default function FollowUpCard({ leadId }: { leadId: string }) {
     try {
       const entry = await addFollowUp(leadId, {
         happened_on: happenedOn,
-        method,
+        // "Other" is a prompt to type the real method, so the typed label is
+        // what gets stored. Falling back to "Other" keeps it valid if they
+        // pick Other and type nothing.
+        method: method === OTHER ? customMethod.trim() || OTHER : method,
         outcome,
         notes,
         next_followup_on: nextOn || null,
@@ -165,6 +174,28 @@ export default function FollowUpCard({ leadId }: { leadId: string }) {
                   </option>
                 ))}
               </select>
+
+              {method === OTHER && (
+                <div className="mt-2">
+                  <label className="sr-only" htmlFor="fu-method-other">
+                    Custom method
+                  </label>
+                  <input
+                    id="fu-method-other"
+                    className={FIELD}
+                    placeholder="Instagram DM, walk-in, referral…"
+                    value={customMethod}
+                    onChange={(e) => setCustomMethod(e.target.value)}
+                    maxLength={40}
+                    disabled={saving}
+                    autoFocus
+                  />
+                  <p className="mt-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+                    Saved as typed, so it shows up in the history and CSV
+                    instead of &ldquo;Other&rdquo;.
+                  </p>
+                </div>
+              )}
             </div>
 
             <div>
