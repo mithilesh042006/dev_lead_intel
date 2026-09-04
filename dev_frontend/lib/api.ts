@@ -36,10 +36,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       headers: { "Content-Type": "application/json", ...init?.headers },
     });
   } catch {
-    // fetch() only rejects on network-level failure, which here almost always
-    // means the backend is not running.
+    // A rejected fetch() is indistinguishable from a CORS block: browsers hide
+    // the reason from JavaScript on purpose. Naming both causes, because a
+    // healthy backend that has not allowed this origin looks exactly like one
+    // that is down — and the fix is completely different.
     throw new ApiError(
-      `Cannot reach the API at ${API_BASE}. Is the backend running?`,
+      `Could not reach the API at ${API_BASE}. Either it is not running, or ` +
+        `it is running but has not allowed this site's origin — check ` +
+        `CORS_ORIGINS on the backend includes ${
+          typeof window === "undefined" ? "this site" : window.location.origin
+        }.`,
       0,
     );
   }
