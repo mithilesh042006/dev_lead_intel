@@ -52,7 +52,7 @@ export default function SavedLeadView({ leadId }: { leadId: string }) {
 
   return (
     <div className="min-h-full bg-zinc-50 dark:bg-black">
-      <main className="mx-auto w-full max-w-4xl px-6 py-12 sm:py-16">
+      <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
         <Link
           href="/leads"
           className="text-sm text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"

@@ -141,8 +141,8 @@ export default function Home() {
 
   return (
     <div className="min-h-full bg-zinc-50 dark:bg-black">
-      <main className="mx-auto w-full max-w-4xl px-6 py-12 sm:py-16">
-        <header className="mb-8">
+      <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+        <header className="mb-5">
           <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-3xl">
             Search
           </h1>

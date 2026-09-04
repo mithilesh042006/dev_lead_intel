@@ -105,7 +105,7 @@ export default function NewLeadPage() {
 
   return (
     <div className="min-h-full bg-zinc-50 dark:bg-black">
-      <main className="mx-auto w-full max-w-3xl px-6 py-12 sm:py-16">
+      <main className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
         <Link
           href="/leads"
           className="text-sm text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
@@ -113,7 +113,7 @@ export default function NewLeadPage() {
           ← Saved leads
         </Link>
 
-        <header className="mb-8 mt-4">
+        <header className="mb-5 mt-3">
           <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-3xl">
             Add a lead manually
           </h1>
