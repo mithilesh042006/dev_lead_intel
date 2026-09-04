@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from datetime import date
 from typing import Optional
 
 from sqlalchemy import func, select
@@ -216,3 +217,113 @@ def delete_followup(lead_id: str, followup_id: int) -> bool:
             return False
         db.delete(entry)
         return True
+
+
+# --- Dashboard ------------------------------------------------------------- #
+
+
+def dashboard_stats(today: date, due_window_days: int = 7) -> dict:
+    """Aggregate the saved-lead pipeline into what a rep needs to act on.
+
+    Computed in Python over the loaded rows rather than in SQL. At a few hundred
+    saved leads that is simpler and fast enough; past a few thousand this wants
+    real aggregate queries.
+
+    "Next due" is the date on a lead's MOST RECENT follow-up, not the earliest
+    across all of them — it is what the rep last committed to, which is the only
+    one still meaningful.
+    """
+    with session_scope() as db:
+        leads = db.execute(select(SavedLead)).unique().scalars().all()
+
+        priority_counts = {p: 0 for p in ("HOT", "WARM", "COLD", "LOW")}
+        pain_counts: dict[str, int] = {}
+        scores: list[int] = []
+        total_followups = 0
+        contacted = 0
+
+        overdue: list[dict] = []
+        due_soon: list[dict] = []
+        uncontacted: list[dict] = []
+
+        for lead in leads:
+            priority_counts[lead.priority] = priority_counts.get(lead.priority, 0) + 1
+            scores.append(lead.lead_score)
+            if lead.pain_category:
+                pain_counts[lead.pain_category] = pain_counts.get(lead.pain_category, 0) + 1
+
+            followups = list(lead.followups)  # already ordered newest first
+            total_followups += len(followups)
+
+            ref = {
+                "lead_id": lead.lead_id,
+                "company_name": lead.company_name,
+                "lead_score": lead.lead_score,
+                "priority": lead.priority,
+                "city": lead.city,
+                "pain_category": lead.pain_category,
+                "saved_at": lead.saved_at,
+                "last_followup_on": None,
+                "next_followup_on": None,
+            }
+
+            if not followups:
+                uncontacted.append(ref)
+                continue
+
+            contacted += 1
+            latest = followups[0]
+            ref["last_followup_on"] = latest.happened_on
+            ref["next_followup_on"] = latest.next_followup_on
+
+            if latest.next_followup_on:
+                delta = (latest.next_followup_on - today).days
+                if delta < 0:
+                    overdue.append(ref)
+                elif delta <= due_window_days:
+                    due_soon.append(ref)
+
+        overdue.sort(key=lambda r: r["next_followup_on"])
+        due_soon.sort(key=lambda r: r["next_followup_on"])
+        # Worth-calling-first: highest score among those nobody has contacted.
+        uncontacted.sort(key=lambda r: r["lead_score"], reverse=True)
+
+        recent = sorted(
+            (
+                {
+                    "lead_id": l.lead_id,
+                    "company_name": l.company_name,
+                    "lead_score": l.lead_score,
+                    "priority": l.priority,
+                    "city": l.city,
+                    "pain_category": l.pain_category,
+                    "saved_at": l.saved_at,
+                    "last_followup_on": None,
+                    "next_followup_on": None,
+                }
+                for l in leads
+            ),
+            key=lambda r: r["saved_at"],
+            reverse=True,
+        )[:5]
+
+        return {
+            "total_leads": len(leads),
+            "average_score": round(sum(scores) / len(scores), 1) if scores else 0.0,
+            "top_score": max(scores) if scores else 0,
+            "by_priority": [
+                {"priority": p, "count": priority_counts.get(p, 0)}
+                for p in ("HOT", "WARM", "COLD", "LOW")
+            ],
+            "by_pain_category": [
+                {"category": c, "count": n}
+                for c, n in sorted(pain_counts.items(), key=lambda kv: -kv[1])[:8]
+            ],
+            "total_followups": total_followups,
+            "leads_contacted": contacted,
+            "leads_never_contacted": len(uncontacted),
+            "overdue": overdue[:10],
+            "due_soon": due_soon[:10],
+            "needs_attention": uncontacted[:10],
+            "recent": recent,
+        }

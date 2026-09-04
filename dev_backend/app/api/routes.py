@@ -14,6 +14,8 @@
     GET    /api/saved-leads
     GET    /api/saved-leads/ids      which leads are already saved
     GET    /api/saved-leads/export/csv   all saved leads as CSV
+
+    GET    /api/dashboard           pipeline rollup + worklists
     GET    /api/saved-leads/{lead_id}
     DELETE /api/saved-leads/{lead_id}
 
@@ -25,7 +27,7 @@ from __future__ import annotations
 
 import logging
 
-from datetime import datetime
+from datetime import date, datetime
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import Response
@@ -35,6 +37,7 @@ from app.config import settings
 from app.models import SearchRequest
 from app.pipeline import LeadPipeline
 from app.schemas.api import (
+    DashboardOut,
     FollowUpBody,
     FollowUpOut,
     FollowUpsResponse,
@@ -394,3 +397,17 @@ def delete_followup(lead_id: str, followup_id: int) -> None:
     _require_db()
     if not saved_leads_store.delete_followup(lead_id, followup_id):
         raise HTTPException(status_code=404, detail="no such follow-up on this lead")
+
+
+# --- Dashboard ------------------------------------------------------------- #
+
+
+@router.get("/dashboard", response_model=DashboardOut)
+def dashboard() -> DashboardOut:
+    """Rollup of the saved-lead pipeline, plus what needs acting on today.
+
+    Aggregated server-side so the page does not download every lead just to
+    count them.
+    """
+    _require_db()
+    return DashboardOut(**saved_leads_store.dashboard_stats(date.today()))

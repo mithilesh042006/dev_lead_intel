@@ -3,6 +3,16 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* Priority is an ORDINAL scale (HOT > WARM > COLD > LOW), so it takes one
+     hue light->dark rather than four categorical colors. Steps come from the
+     blue ramp and were checked with the palette validator against the card
+     surfaces below: monotone lightness, >=0.06 dL between adjacent steps, and
+     the light end clearing 2:1 contrast. Light surface #ffffff. */
+  --priority-hot: #1c5cab;
+  --priority-warm: #2a78d6;
+  --priority-cold: #5598e7;
+  --priority-low: #86b6ef;
 }
 
 @theme inline {
@@ -16,6 +26,13 @@
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+
+    /* Re-stepped for the dark card surface #09090b, not flipped: validated
+       separately, going no darker than ramp step 600. */
+    --priority-hot: #9ec5f4;
+    --priority-warm: #6da7ec;
+    --priority-cold: #3987e5;
+    --priority-low: #256abf;
   }
 }
 

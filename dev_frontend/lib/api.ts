@@ -4,6 +4,7 @@
 // holds the Apify and Gemini credentials server-side (§37).
 
 import type {
+  Dashboard,
   FollowUp,
   FollowUpBody,
   FollowUpsResponse,
@@ -165,4 +166,10 @@ export async function deleteFollowUp(leadId: string, followUpId: number): Promis
     { method: "DELETE" },
   );
   if (!response.ok) throw new ApiError(await describeError(response), response.status);
+}
+
+// --- Dashboard -------------------------------------------------------------
+
+export function getDashboard(): Promise<Dashboard> {
+  return request<Dashboard>("/api/dashboard");
 }

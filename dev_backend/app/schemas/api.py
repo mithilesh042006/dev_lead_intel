@@ -336,3 +336,48 @@ class FollowUpsResponse(BaseModel):
     count: int
     methods: list[str] = Field(default_factory=lambda: list(FOLLOWUP_METHODS))
     followups: list[FollowUpOut]
+
+
+# --- Dashboard ------------------------------------------------------------- #
+
+
+class DashboardLeadRef(BaseModel):
+    """Just enough of a lead to decide whether to click it."""
+
+    lead_id: str
+    company_name: str
+    lead_score: int
+    priority: str
+    city: str = ""
+    pain_category: str = ""
+    saved_at: datetime
+    last_followup_on: Optional[date] = None
+    next_followup_on: Optional[date] = None
+
+
+class PriorityCount(BaseModel):
+    priority: str
+    count: int
+
+
+class CategoryCount(BaseModel):
+    category: str
+    count: int
+
+
+class DashboardOut(BaseModel):
+    total_leads: int
+    average_score: float
+    top_score: int
+    by_priority: list[PriorityCount]
+    by_pain_category: list[CategoryCount]
+
+    total_followups: int
+    leads_contacted: int
+    leads_never_contacted: int
+
+    # The three lists that make this a worklist rather than a stats page.
+    overdue: list[DashboardLeadRef]
+    due_soon: list[DashboardLeadRef]
+    needs_attention: list[DashboardLeadRef]
+    recent: list[DashboardLeadRef]

@@ -166,3 +166,32 @@ export interface FollowUpsResponse {
   methods: string[];
   followups: FollowUp[];
 }
+
+// --- Dashboard -------------------------------------------------------------
+
+export interface DashboardLeadRef {
+  lead_id: string;
+  company_name: string;
+  lead_score: number;
+  priority: Priority;
+  city: string;
+  pain_category: string;
+  saved_at: string;
+  last_followup_on: string | null;
+  next_followup_on: string | null;
+}
+
+export interface Dashboard {
+  total_leads: number;
+  average_score: number;
+  top_score: number;
+  by_priority: { priority: Priority; count: number }[];
+  by_pain_category: { category: string; count: number }[];
+  total_followups: number;
+  leads_contacted: number;
+  leads_never_contacted: number;
+  overdue: DashboardLeadRef[];
+  due_soon: DashboardLeadRef[];
+  needs_attention: DashboardLeadRef[];
+  recent: DashboardLeadRef[];
+}
